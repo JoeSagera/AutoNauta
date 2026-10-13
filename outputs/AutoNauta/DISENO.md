@@ -75,7 +75,7 @@ No cambiaron `Engine`, `Network`, `PortalClient`, `CaptiveProbe`, `SocketPath`, 
 
 ## Pendientes y límites
 
-- El ejecutable ya fue reemplazado y abierto con la cuenta existente. La comprobación manual del indicador nuevo se registra en `REVISION-DISENO-2.2.md`; siguen pendientes Win+D, arrastre a cada esquina y monitores con escalas distintas, salvo confirmación posterior.
+- El ejecutable ya fue reemplazado y abierto con la cuenta existente. El usuario confirmó que el LED sigue visible tras «Mostrar escritorio», se despliega al pasar el mouse y aparece en la posición esperada. La comprobación está registrada en `REVISION-DISENO-2.2.md`; siguen pendientes Win+D, arrastre a cada esquina y monitores con escalas distintas.
 - Con un tema claro de Windows la aplicación sigue oscura: no se implementó el cambio automático de tema.
 - El interruptor de login automático no muestra texto propio; su estado se lee en la descripción (AUTO/MAN) y lo anuncian los lectores de pantalla como casilla.
 - No se probó con monitores de escalas distintas ni con lector de pantalla.

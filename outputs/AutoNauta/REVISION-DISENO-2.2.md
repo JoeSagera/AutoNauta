@@ -38,7 +38,7 @@ Las cuatro muestras originales están en `evidencias-rendimiento-2.2/`. Las cifr
 
 ## Comprobación manual y límites
 
-La revisión automática reproduce minimización y recuperación, pero no ejecuta el botón real «Mostrar escritorio». Se solicitó al usuario comprobar el indicador nuevo, su expansión y su posición; el resultado se añadirá aquí cuando responda.
+La revisión automática reproduce minimización y recuperación, pero no ejecuta el botón real «Mostrar escritorio». **Comprobación manual confirmada por el usuario:** después de activar AutoNauta 2.2, pulsó «Mostrar escritorio» y pasó el mouse por el LED; confirmó que sigue visible, se despliega bien y aparece en la posición esperada («Sí, todo funciona bien»).
 
 Siguen pendientes una caída real de Nauta con una sesión nueva y su contador, Win+D, monitores con escalas distintas, lector de pantalla y observación durante días. Esta revisión no desconectó la VPN ni provocó un nuevo login Nauta.
 
