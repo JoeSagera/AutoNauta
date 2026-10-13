@@ -1,10 +1,10 @@
 # AutoNauta
 
-Entrega actual: **2.2.0.0**, con el diseño de Claude revisado por Codex. La cuenta existente se conserva. La revisión funcional y de recursos está en `REVISION-DISENO-2.2.md`.
+Entrega actual: **2.2.1.0**, con VPN opcional y el diseño de Claude revisado por Codex. La cuenta existente se conserva. La revisión de la interfaz y recursos 2.2 está en `REVISION-DISENO-2.2.md`.
 
 ## Empezar
 
-Abre **AutoNauta.exe** y pulsa **Iniciar** en la fila **Vigilancia**. La cuenta y posición de la versión anterior se conservan; no necesita administrador ni modificar WireGuard.
+Abre **AutoNauta.exe** y pulsa **Iniciar** en la fila **Vigilancia**. La cuenta y posición de la versión anterior se conservan; no necesita administrador ni VPN. Cada amigo introduce su propia cuenta antes de iniciar.
 
 Con una cuenta guardada, la sección **Cuenta Nauta** muestra un resumen parcial del usuario. Para cambiarla, pulsa **Cambiar cuenta**, escribe el usuario completo de navegación y su contraseña, y pulsa **Guardar cuenta** o Intro. Dejar la contraseña vacía conserva la existente. **Cancelar** o Esc descarta lo escrito. **Eliminar cuenta** pide confirmación.
 
@@ -18,8 +18,8 @@ Pulsa la chincheta para **mantener la barra expandida**. Vuelve a pulsarla para 
 
 Arrastra el LED o el fondo de la barra para moverlo. Doble clic abre la ventana principal. La barra se extiende hacia el espacio disponible y conserva el LED en su posición.
 
-- Verde: Internet confirmado por la VPN.
-- Amarillo: reconectando Nauta o esperando la VPN / una acción manual.
+- Verde: Internet confirmado por la salida actual de Windows.
+- Amarillo: reconectando Nauta o esperando Internet / una acción manual.
 - Rojo: error del portal, cuenta, certificado o acceso.
 - Gris: pausado o esperando confirmación de la conexión.
 
@@ -29,7 +29,7 @@ Arrastra el LED o el fondo de la barra para moverlo. Doble clic abre la ventana 
 
 Desactivarlo cancela los intentos pendientes y conserva la vigilancia, velocidades y consultas de tiempo. No inicia nuevas sesiones de navegación. Activarlo permite reconectar cuando se confirma que Nauta requiere acceso. El modo se guarda para la siguiente apertura.
 
-**Pausar** detiene la vigilancia y las consultas de cuenta; las velocidades del sistema siguen visibles. Ninguna opción desconecta una sesión Nauta existente ni modifica WireGuard. Una sesión abierta puede seguir consumiendo tiempo o saldo.
+**Pausar** detiene la vigilancia y las consultas de cuenta; las velocidades del sistema siguen visibles. Ninguna opción desconecta una sesión Nauta existente ni cambia la configuración de red. Una sesión abierta puede seguir consumiendo tiempo o saldo.
 
 ## Tiempo de la cuenta
 
@@ -55,7 +55,7 @@ La recuperación real y la consulta del contador de una sesión nueva siguen pen
 
 ## Versión 2.1 y ejecución prolongada
 
-La entrega actual es **2.1.1**. Corrige la desaparición del LED al pulsar «Mostrar escritorio». Si necesitas restaurarlo, haz clic derecho en el icono de AutoNauta junto al reloj y elige **Recuperar LED**. **Mostrar AutoNauta** recupera el LED y abre la ventana principal. La corrección no incorpora vigilancia adicional ni cambia la cuenta o la VPN.
+La versión **2.1.1** introdujo la corrección de la desaparición del LED al pulsar «Mostrar escritorio»; la entrega 2.2 la conserva. Si necesitas restaurarlo, haz clic derecho en el icono de AutoNauta junto al reloj y elige **Recuperar LED**. **Mostrar AutoNauta** recupera el LED y abre la ventana principal. La corrección no incorpora vigilancia adicional ni cambia la cuenta o la VPN.
 
 Con solo el LED visible, el programa evita repintados y actualizaciones de controles ocultos. La barra y las velocidades se actualizan al mostrarse. Conserva el muestreo de velocidades cada segundo y la vigilancia configurada.
 
@@ -69,4 +69,4 @@ Consulta `REVISION-RENDIMIENTO.md` para los cambios, medidas y límites de la pr
 
 La ventana se organiza en estado, funcionamiento (vigilancia y login automático), cuenta y actividad reciente. Usa un tema oscuro, texto nítido con cualquier escala de Windows y una cápsula del LED más pequeña con bordes suavizados. Las funciones, el menú junto al reloj (**Recuperar LED** incluido), la posición guardada y las preferencias se mantienen. Detalles y capturas: `DISENO.md` y `diseno-2.2/`.
 
-Mientras `AutoNauta.exe` siga mostrando la versión 2.1.1 en sus propiedades, la interfaz nueva no está instalada: cierra AutoNauta con **Salir** y ejecuta `Compilar.ps1`.
+El ejecutable entregado ya es 2.2.1.0. Para una compilación de desarrollo, cierra AutoNauta con **Salir** y ejecuta `Compilar.ps1`; los amigos que reciben el paquete de Release solo tienen que extraerlo y abrir el programa.

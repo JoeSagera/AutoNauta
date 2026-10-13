@@ -299,7 +299,7 @@ namespace NautaReconnect
                 indicator.SaveSnapshot(Path.Combine(folder,"ui-indicator-" + light.ToString().ToLowerInvariant() + ".png"));
             }
             for(int i=0;i<200;i++)ApplyStatus(new Status(Light.Green,"Internet conectado","Estado estable"));Assert(icons.Count<=4,"El icono debe reutilizarse y no crear recursos por cada estado.");
-            indicator.MoveAnchor(location);ApplyStatus(new Status(Light.Green,"Internet conectado","Internet confirmado mediante la VPN. Datos de ejemplo; sin red."));
+            indicator.MoveAnchor(location);ApplyStatus(new Status(Light.Green,"Internet conectado","Internet confirmado. Datos de ejemplo; sin red."));
             var example=previewMetrics.Copy();indicator.ReadMetrics=delegate{return example;};ApplyMetrics(example);
             indicator.SetPinned(false);indicator.SetExpanded(false,true);
             Assert(indicator.CurrentWidth==indicator.CollapsedSize.Width&&indicator.CollapsedSize.Width>indicator.CollapsedSize.Height&&indicator.AlphaAt(0,0)==0&&indicator.AlphaAt(indicator.CollapsedSize.Width/2,indicator.CollapsedSize.Height/2)==255,"El reposo debe ser un LED en cápsula ovalada, sin esquinas cuadradas.");
@@ -322,7 +322,7 @@ namespace NautaReconnect
             try{
                 // In-memory example only; the preview never saves these values.
                 controller.Settings.Username="ejemplo@nauta.com.cu";controller.Settings.ProtectedPassword="vista-previa";
-                ApplyMetrics(example);ApplyStatus(new Status(Light.Green,"Internet conectado","Internet confirmado mediante la VPN. Datos de ejemplo; sin red."));
+                ApplyMetrics(example);ApplyStatus(new Status(Light.Green,"Internet conectado","Internet confirmado. Datos de ejemplo; sin red."));
                 editingAccount=false;RefreshAccount();RefreshActions();Application.DoEvents();
                 Assert(!main.AccountExpanded&&main.AccountSummary.Text.StartsWith("ej•••@"),"Con cuenta guardada se muestra un resumen sin la cuenta completa.");
                 Snapshot(main,Path.Combine(folder,"ui-main-cuenta-guardada.png"));

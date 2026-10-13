@@ -69,3 +69,13 @@ Las primeras repeticiones fallaron al reutilizar una carpeta de capturas recién
 - Arrastrar el LED con el mouse físico a las cuatro esquinas y entre monitores.
 - Uso prolongado con la red real y comparación de recursos con `work/Measure-Process.ps1`.
 - Monitores con escalas distintas y lector de pantalla.
+
+## Release 2.2.1 — VPN opcional
+
+El usuario autorizó publicar el repositorio completo y pidió retirar la exigencia de WireGuard. La comprobación de Internet ahora selecciona la ruta IPv4 actual de Windows para cada sonda HTTPS; Nauta sigue usando el acceso físico por el router. No se cambian rutas, clientes VPN ni el criterio que autoriza enviar credenciales.
+
+65 pruebas correctas. Las cinco nuevas cubren ruta física sin VPN, ruta de túnel, ausencia de interfaz, una respuesta cautiva que no debe dar verde y cancelación antes/durante la comprobación. Estas pruebas de selección usan dependencias controladas: no se desconectó la VPN del usuario para simular una red sin VPN.
+
+El ZIP preparado incluye solo ejecutable, guía y sumas SHA-256. Se extrajo a una carpeta nueva, se verificó que el ejecutable coincide por hash y se ejecutó la prueba visual del programa extraído: salida 0 y 17 capturas. La recuperación durante una caída real y el contador de una sesión nueva siguen pendientes de observación.
+
+Antes del ajuste final de textos, una medición de 60,57 segundos de la 2.2.1 minimizada registró 0,184 % de CPU total y picos de 57,80 MiB residentes y 30,10 MiB privados. Es una muestra corta del proceso real, no una comparación controlada con las anteriores ni una garantía de consumo fijo. El JSON se conserva en `evidencias-rendimiento-2.2.1/`.

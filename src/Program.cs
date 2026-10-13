@@ -47,8 +47,8 @@ namespace NautaReconnect {
             result["fecha"]=DateTime.Now.ToString("o");
             result["administrador"]=new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
             try{
-                Phase(file,result,"internet_vpn");
-                var vpn=Networks.Vpn();result["vpn"]=vpn==null?"Sin interfaz VPN activa":vpn.Name;var trace=new List<string>();result["internet_por_vpn"]=Connectivity.Verify(vpn,CancellationToken.None,trace);result["detalle_pruebas_vpn"]=trace;
+                Phase(file,result,"internet_actual");
+                var trace=new List<string>();var connection=Connectivity.CheckCurrent(CancellationToken.None,trace);result["internet_actual"]=connection.Connected;result["interfaz_internet"]=connection.Interface==null?"Sin ruta confirmada":connection.Interface.Name;result["detalle_pruebas_internet"]=trace;
                 Phase(file,result,"detectar_router");var link=Networks.Router();result["router"]=link.Gateway.ToString();result["interfaz_router"]=link.Name;result["interfaz_sockets"]=link.Index;
                 Phase(file,result,"comprobar_router");
                 result["estado_nauta_por_router"]=CaptiveProbe.Check(link,CancellationToken.None).ToString();
@@ -57,7 +57,7 @@ namespace NautaReconnect {
                 var page=new PortalClient(link,target).Get(CancellationToken.None);result["http"]=page.Code;var parsed=PortalParser.Parse(page.Body,page.Uri);result["formulario_reconocido"]=parsed.Login;result["sesion_abierta"]=parsed.Connected;result["error_portal"]=parsed.Error;result["campos_formulario"]=new List<string>(parsed.Fields.Keys);
             }catch(NetworkFailure ex){result["bloqueo_red"]=ex.Blocked;result["error_certificado"]=ex.Certificate;result["error"]=ex.Message;if(ex.Certificate)result["certificado_portal"]=PinnedHttp.LastCertificateInfo;}
             catch(Exception ex){result["error"]=ex.Message;}
-            finally{Phase(file,result,"comprobar_vpn_despues");var after=Networks.Vpn();result["vpn_despues"]=after==null?"Sin interfaz VPN activa":after.Name;var trace=new List<string>();result["internet_por_vpn_despues"]=Connectivity.Verify(after,CancellationToken.None,trace);result["detalle_vpn_despues"]=trace;}
+            finally{Phase(file,result,"comprobar_internet_despues");var trace=new List<string>();var after=Connectivity.CheckCurrent(CancellationToken.None,trace);result["internet_despues"]=after.Connected;result["detalle_internet_despues"]=trace;}
             result["fase"]="terminado";
             File.WriteAllText(file,new JavaScriptSerializer().Serialize(result));return result.ContainsKey("error")?1:0;
         }

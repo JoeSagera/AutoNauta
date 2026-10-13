@@ -32,7 +32,7 @@ namespace NautaReconnect {
         DateTime loginSucceededUntil=DateTime.MinValue;
         public Engine(SettingsStore value,bool preview) {
             store=value;Settings=store.Load();
-            Current=new Status(Light.Gray,"Pausado",preview?"Vista de prueba; no se realizan conexiones.":"Configura tu cuenta y pulsa Iniciar. La VPN permanece activa.");
+            Current=new Status(Light.Gray,"Pausado",preview?"Vista de prueba; no se realizan conexiones.":"Configura tu cuenta y pulsa Iniciar.");
             if(!preview){rates.TopologyChanged+=NetworkChanged;worker=new Thread(Loop);worker.IsBackground=true;worker.Start();rateTimer=new Timer(SampleRates,null,0,1000);}
         }
         void NetworkChanged(object sender,EventArgs args){Networks.Addresses.Clear();Signal();}
@@ -62,7 +62,7 @@ namespace NautaReconnect {
         public void Start() {
             if(closing)return;
             lock(tokenGate){running=true;retry.Failures=0;}
-            Set(Light.Gray,"Comprobando conexión","Verificando Internet mediante la VPN antes de acceder a Nauta.");Signal();
+            Set(Light.Gray,"Comprobando conexión","Verificando Internet por la salida actual antes de acceder a Nauta.");Signal();
         }
         public void Pause() {
             lock(tokenGate){running=false;if(cycle!=null)cycle.Cancel();}
@@ -100,7 +100,7 @@ namespace NautaReconnect {
                         lock(tokenGate){cycle=token;if(!running||closing)token.Cancel();}
                         lock(cycleGate){
                         try{token.Token.ThrowIfCancellationRequested();Cycle(token.Token);}catch(OperationCanceledException){}
-                        catch(NetworkFailure e){if(running){if(e.Blocked)Set(Light.Red,"Acceso al portal bloqueado","Windows/VPN rechazó el acceso por el router. Revisa el diagnóstico y el permiso de acceso a la red local de tu VPN.");else if(e.Certificate){retry.AuthBlocked=true;Set(Light.Red,"Certificado HTTPS no válido","No se enviaron credenciales. Revisa fecha de Windows y certificado del portal; no se desactiva su validación.");}else if(retry.AuthBlocked)Set(Light.Red,"Autenticación detenida","Tres intentos no confirmados. Revisa el portal y guarda de nuevo la cuenta para permitir otro intento.");else Set(Light.Gray,"Esperando portal","Nauta todavía no responde. Se reintentará automáticamente manteniendo la VPN activa.");}}
+                        catch(NetworkFailure e){if(running){if(e.Blocked)Set(Light.Red,"Acceso al portal bloqueado","Windows o el software de red rechazó el acceso por el router. Revisa el diagnóstico y los permisos de acceso a la red local.");else if(e.Certificate){retry.AuthBlocked=true;Set(Light.Red,"Certificado HTTPS no válido","No se enviaron credenciales. Revisa fecha de Windows y certificado del portal; no se desactiva su validación.");}else if(retry.AuthBlocked)Set(Light.Red,"Autenticación detenida","Tres intentos no confirmados. Revisa el portal y guarda de nuevo la cuenta para permitir otro intento.");else Set(Light.Gray,"Esperando portal","Nauta todavía no responde. Se reintentará automáticamente.");}}
                         catch(Exception e){if(running)Set(Light.Red,"No se pudo continuar",SafeError(e));}
                         finally{lock(tokenGate){cycle=null;}}
                         }
@@ -115,13 +115,13 @@ namespace NautaReconnect {
             return "Comprueba la conexión y la configuración. El detalle técnico se omite para no registrar datos de sesión.";
         }
         void Cycle(CancellationToken token){
-            var vpn=Networks.Vpn();
-            if(Connectivity.Verify(vpn,token)){retry.Healthy();Set(Light.Green,"Internet conectado","Conexión comprobada a través de "+vpn.Name+". El programa permanece esperando.");RefreshAccount(token);return;}
-            if(!retry.ConfirmFailure()){Set(Light.Gray,"Verificando caída",vpn==null?"La VPN no está activa. Se confirma el estado antes de intentar Nauta.":"Primer fallo de conectividad; esperando una segunda comprobación.");return;}
+            var connection=Connectivity.CheckCurrent(token);
+            if(connection.Connected){retry.Healthy();Set(Light.Green,"Internet conectado","Conexión comprobada a través de "+connection.Interface.Name+". El programa permanece esperando.");RefreshAccount(token);return;}
+            if(!retry.ConfirmFailure()){Set(Light.Gray,"Verificando caída","Primer fallo de conectividad; esperando una segunda comprobación.");return;}
             token.ThrowIfCancellationRequested();
             var router=Networks.Router();string cached;lock(settingsGate)cached=Settings.LastPortalIp;
             CaptiveState access=CaptiveProbe.Check(router,token);
-            if(access==CaptiveState.Internet){Set(Light.Yellow,"Esperando VPN","El router tiene Internet. Se espera a la VPN sin iniciar sesión en Nauta.");RefreshAccount(token);return;}
+            if(access==CaptiveState.Internet){Set(Light.Yellow,"Esperando conexión","El router tiene Internet. Se espera a que la salida del sistema vuelva a responder sin iniciar sesión en Nauta.");RefreshAccount(token);return;}
             if(access!=CaptiveState.LoginRequired){Set(Light.Gray,"Esperando confirmación de Nauta","La comprobación por el router no confirmó que Nauta solicite acceso. Se espera sin enviar la contraseña.");return;}
             IPAddress address=Networks.PortalAddress(router,cached,token);
             lock(settingsGate){if(Settings.LastPortalIp!=address.ToString()){Settings.LastPortalIp=address.ToString();store.Save(Settings);}}
@@ -129,13 +129,13 @@ namespace NautaReconnect {
             var client=new PortalClient(router,address);var response=client.Get(token);
             if(response.Code<200||response.Code>=300){Set(Light.Red,"Error del portal","El portal respondió HTTP "+response.Code+". Se volverá a comprobar sin enviar credenciales.");return;}
             var page=PortalParser.Parse(response.Body,response.Uri);
-            if(page.Connected){Set(Light.Yellow,"Esperando VPN",vpn==null?"Nauta informa que la sesión está abierta. La VPN no está activa; no se vuelve a autenticar.":"Nauta informa que la sesión está abierta. Esperando a que la VPN recupere su conexión.");RefreshAccount(token);return;}
+            if(page.Connected){Set(Light.Yellow,"Esperando conexión","Nauta informa que la sesión está abierta. Se espera a recuperar Internet sin volver a autenticar.");RefreshAccount(token);return;}
             if(page.SessionInUse){retry.AuthBlocked=true;Set(Light.Yellow,"Sesión Nauta en uso","Se espera sin volver a autenticar. Cuando se libere la cuenta, guárdala de nuevo para permitir otro intento.");return;}
             if(!page.Login){if(page.Fatal)retry.AuthBlocked=true;Set(Light.Red,"Error del portal",page.Error);return;}
             if(!String.IsNullOrEmpty(Settings.ProtectedSession)){lock(settingsGate){Settings.ProtectedSession="";store.Save(Settings);}lock(metricsGate){metrics.Remaining=null;metrics.AccountNote="La sesión anterior terminó; esperando un nuevo contador de Nauta.";}MetricsUpdated();}
             if(!Settings.AutoLoginEnabled){Set(Light.Yellow,"Login automático desactivado","Nauta solicita acceso. La vigilancia continúa sin iniciar sesión automáticamente.");return;}
             if(retry.AuthBlocked){Set(Light.Red,"Autenticación detenida","Revisa el portal y guarda nuevamente la cuenta para permitir otro intento.");return;}
-            if(DateTime.UtcNow<loginSucceededUntil){Set(Light.Yellow,"Esperando recuperación","Se envió un inicio de sesión recientemente. Esperando a la VPN antes de repetirlo.");return;}
+            if(DateTime.UtcNow<loginSucceededUntil){Set(Light.Yellow,"Esperando recuperación","Se envió un inicio de sesión recientemente. Esperando la conexión antes de repetirlo.");return;}
             string user,protectedPassword;lock(settingsGate){user=Settings.Username;protectedPassword=Settings.ProtectedPassword;}
             if(String.IsNullOrEmpty(user)||String.IsNullOrEmpty(protectedPassword)){Set(Light.Red,"Falta configurar la cuenta","El portal está disponible. Introduce usuario y contraseña en la ventana y pulsa Guardar cuenta.");return;}
             if(!retry.CanLogin(DateTime.UtcNow)){Set(Light.Yellow,"Esperando próximo intento","El portal está disponible. Se espacian los intentos para evitar repetir autenticaciones.");return;}
@@ -148,8 +148,8 @@ namespace NautaReconnect {
             if(answer.Fatal)retry.AuthBlocked=true;
             if(answer.SessionInUse){retry.AuthBlocked=true;Set(Light.Yellow,"Sesión Nauta en uso","Se detienen las autenticaciones mientras la cuenta está en uso. Guarda de nuevo la cuenta para reanudar los intentos.");return;}
             if(answer.Error.Length>0&&!answer.Login&&!answer.Connected){retry.AuthenticationFailed();Set(Light.Red,"Nauta devolvió un error",answer.Error+(retry.AuthBlocked?" Los intentos quedaron detenidos hasta revisar y guardar de nuevo la cuenta.":""));return;}
-            if(Connectivity.Verify(Networks.Vpn(),token)){retry.Healthy();Set(Light.Green,"Internet recuperado","Acceso a Internet comprobado mediante la VPN después de iniciar sesión en Nauta.");RefreshAccount(token);return;}
-            if(answer.Connected){loginSucceededUntil=DateTime.UtcNow.AddMinutes(3);Set(Light.Yellow,"Nauta conectado; esperando VPN","La sesión está abierta. El verde aparecerá cuando Internet funcione mediante la VPN.");RefreshAccount(token);}
+            if(Connectivity.CheckCurrent(token).Connected){retry.Healthy();Set(Light.Green,"Internet recuperado","Acceso a Internet comprobado después de iniciar sesión en Nauta.");RefreshAccount(token);return;}
+            if(answer.Connected){loginSucceededUntil=DateTime.UtcNow.AddMinutes(3);Set(Light.Yellow,"Nauta conectado; esperando Internet","La sesión está abierta. El verde aparecerá cuando se confirme el acceso a Internet.");RefreshAccount(token);}
             else {retry.AuthenticationFailed();Set(Light.Red,"Inicio de sesión no confirmado",retry.AuthBlocked?"Tres intentos no confirmados. Revisa el portal y guarda nuevamente la cuenta antes de continuar.":"El portal devolvió el formulario de acceso. No se confirmó la reconexión; se esperará antes de reintentar.");}
         }
         void RefreshAccount(CancellationToken token){

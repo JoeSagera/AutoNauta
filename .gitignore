@@ -30,3 +30,6 @@ work/*
 # El ejecutable pequeño de la entrega se conserva junto con su código.
 *.exe
 !outputs/AutoNauta/AutoNauta.exe
+
+# Paquetes descargables se adjuntan a la Release, no al historial Git.
+outputs/releases/

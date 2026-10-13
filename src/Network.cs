@@ -46,6 +46,16 @@ namespace NautaReconnect {
             }
             return null;
         }
+        public static NetworkLink InternetRoute(IPAddress address) {
+            uint index=SocketPath.BestInterface(address);
+            foreach(var nic in NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.OperationalStatus==OperationalStatus.Up&&n.NetworkInterfaceType!=NetworkInterfaceType.Loopback&&n.Supports(NetworkInterfaceComponent.IPv4))){
+                var properties=nic.GetIPProperties();var ipv4=properties.GetIPv4Properties();
+                if(ipv4==null||(uint)ipv4.Index!=index)continue;
+                var local=properties.UnicastAddresses.Select(x=>x.Address).FirstOrDefault(x=>x.AddressFamily==AddressFamily.InterNetwork&&!x.ToString().StartsWith("169.254."));
+                if(local!=null)return new NetworkLink{Name=nic.Name,LocalIp=local,Index=ipv4.Index};
+            }
+            return null;
+        }
         public static IPAddress[] Resolve(string host,CancellationToken token) {
             return Addresses.Get(host,token);
         }
@@ -138,7 +148,36 @@ namespace NautaReconnect {
             throw new InvalidOperationException("El portal redirigió demasiadas veces.");
         }
     }
+    public sealed class ConnectionCheck {
+        public bool Connected;
+        public NetworkLink Interface;
+    }
     public static class Connectivity {
+        public static ConnectionCheck CheckCurrent(CancellationToken token,System.Collections.Generic.List<string> trace=null){
+            return CheckCurrent(Networks.Resolve,Networks.InternetRoute,delegate(Uri uri,IPAddress address,NetworkLink link,CancellationToken cancellation){
+                string redirect;return PinnedHttp.Send(uri,address,link,null,new CookieContainer(),cancellation,out redirect,5000);
+            },token,trace);
+        }
+        // Follow the route Windows currently uses for each public probe. The
+        // Nauta portal still uses the independent physical-router path.
+        internal static ConnectionCheck CheckCurrent(Func<string,CancellationToken,IPAddress[]> resolve,Func<IPAddress,NetworkLink> route,Func<Uri,IPAddress,NetworkLink,CancellationToken,PageResponse> send,CancellationToken token,System.Collections.Generic.List<string> trace=null){
+            string[] urls={"https://www.gstatic.com/generate_204","https://www.msftconnecttest.com/connecttest.txt"};
+            for(int i=0;i<urls.Length;i++){
+                token.ThrowIfCancellationRequested();Uri uri=new Uri(urls[i]);
+                try{
+                    foreach(var address in resolve(uri.Host,token).Where(a=>a.AddressFamily==AddressFamily.InterNetwork).Take(2)){
+                        try{
+                            token.ThrowIfCancellationRequested();var link=route(address);if(link==null)continue;
+                            var response=send(uri,address,link,token);token.ThrowIfCancellationRequested();
+                            if(IsExpected(i,response.Code,response.Body)){if(trace!=null)trace.Add("Prueba "+i+": correcta");return new ConnectionCheck{Connected=true,Interface=link};}
+                            if(trace!=null)trace.Add("Prueba "+i+": respuesta no confirmada");
+                        }catch(Exception ex){token.ThrowIfCancellationRequested();if(trace!=null)trace.Add("Prueba "+i+": "+ex.GetType().Name);}
+                    }
+                }catch(Exception ex){token.ThrowIfCancellationRequested();if(trace!=null)trace.Add("Prueba "+i+": "+ex.GetType().Name);}
+                Networks.Addresses.Invalidate(uri.Host);
+            }
+            return new ConnectionCheck();
+        }
         public static bool Verify(NetworkLink vpn,CancellationToken token) {
             return Verify(vpn,token,null);
         }

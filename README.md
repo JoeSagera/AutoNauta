@@ -1,6 +1,10 @@
 # AutoNauta
 
-Programa Windows para recuperar la sesión Nauta Hogar automáticamente, con WireGuard activo, LED ovalado desplegable, contador de tiempo y tráfico del sistema. La cuenta cifrada existente se conserva.
+Programa Windows para recuperar la sesión Nauta Hogar automáticamente, con LED ovalado desplegable, contador de tiempo y tráfico del sistema. No requiere VPN; la cuenta cifrada existente se conserva.
+
+## Descargar la beta
+
+[AutoNauta 2.2.1 para Windows x64](https://github.com/JoeSagera/AutoNauta/releases/tag/v2.2.1). Descarga el ZIP, extrae su contenido y abre `AutoNauta.exe`; cada persona introduce su propia cuenta. No hace falta compilar ni instalar el programa. Es una beta: la reconexión durante una caída real y el contador de una sesión nueva aún requieren validación de campo.
 
 ## Ejecutar y desarrollar
 
@@ -19,9 +23,9 @@ La carpeta nueva estaba vacía. Se trasladaron los fuentes útiles de la entrega
 
 ## Conexiones y decisiones
 
-`SocketPath.Select` elige la interfaz de salida de cada socket IPv4 mediante IP_UNICAST_IF; solo afecta a ese socket. DNS del router, sonda HTTP cautiva y HTTPS Nauta usan la interfaz física. Las sondas HTTPS de Internet usan la interfaz WireGuard detectada y comprueban también su ruta. El verde requiere una respuesta exacta por VPN.
+`SocketPath.Select` elige la interfaz de salida de cada socket IPv4 mediante IP_UNICAST_IF; solo afecta a ese socket. DNS del router, sonda HTTP cautiva y HTTPS Nauta usan la interfaz física. Desde 2.2.1 las sondas HTTPS de Internet usan la ruta actual de Windows para cada destino; el verde exige una respuesta exacta y no requiere VPN.
 
-Tras dos fallos, una petición HTTP sin credenciales distingue Internet directo de una redirección al portal. Con Internet directo, espera a la VPN. Una respuesta ambigua espera sin autenticar. Solo una redirección al origen Nauta HTTPS habilita la consulta del formulario y un posible POST. Cookies y formulario quedan en memoria; los datos necesarios del contador de una sesión confirmada se conservan cifrados con DPAPI. Se validan certificados y se limitan los reintentos. Pausar cancela las operaciones.
+Tras dos fallos, una petición HTTP sin credenciales distingue Internet directo de una redirección al portal. Si el router tiene Internet, espera a recuperar la salida del sistema sin autenticar. Una respuesta ambigua espera sin autenticar. Solo una redirección al origen Nauta HTTPS habilita la consulta del formulario y un posible POST. Cookies y formulario quedan en memoria; los datos necesarios del contador de una sesión confirmada se conservan cifrados con DPAPI. Se validan certificados y se limitan los reintentos. Pausar cancela las operaciones.
 
 Se sustituyó la comprobación basada en BindIPEndPointDelegate: con la resolución de esta conexión entraba en reintentos de enlace y consumía CPU. Ahora elige IPv4 e interfaz explícitamente, con conexiones acotadas y cancelación. Las sondas públicas solo admiten GET a dos URL exactas; los POST siguen limitados al portal.
 
@@ -48,7 +52,7 @@ La versión anterior está en `work/backup-v2`. `work/PerformanceHarness.cs` per
 
 ## Repositorio y datos locales
 
-Repositorio privado: [JoeSagera/AutoNauta](https://github.com/JoeSagera/AutoNauta). Rama principal: `main`.
+Repositorio: [JoeSagera/AutoNauta](https://github.com/JoeSagera/AutoNauta). Rama principal: `main`. El propietario autorizó hacerlo público para compartir las Releases con sus amigos.
 
 Git conserva las fuentes, las instrucciones de compilación, el ejecutable de la entrega, documentación, imágenes de ejemplo y mediciones de recursos. Las copias `work/backup-v1` y `work/backup-v2`, pruebas temporales y diagnósticos de red permanecen solo en el equipo original; no forman parte de un clon del repositorio. Los dos instrumentos de medición en `work/` sí se versionan.
 
@@ -69,3 +73,11 @@ Referencia del comportamiento de Windows: [Microsoft: WS_MINIMIZEBOX y Mostrar e
 Ventana principal en cuatro bloques (estado, funcionamiento, cuenta y actividad) con tema grafito y un único acento azul. Indicador con transparencia por píxel (cápsula más pequeña y con bordes suavizados) y proceso de interfaz *DPI-aware*. La posición se sigue guardando en unidades de 96 DPI, como en las versiones anteriores. No se modificaron la conexión, la autenticación, la VPN, el cifrado ni las métricas.
 
 Fuentes nuevos: `src/UiTheme.cs` y `src/UiMain.cs`. Decisiones, capturas y pendientes: `outputs/AutoNauta/DISENO.md`, `outputs/AutoNauta/diseno-2.2/` y la sección 2.2 de `VALIDACION.md`. La entrega `AutoNauta.exe` ya está compilada como **2.2.0.0**. Codex revisó el diseño de Claude, ejecutó las 60 pruebas y la revisión visual a 100 %, 150 % y 200 %, y comparó recursos con la 2.1.1. Resultados: `outputs/AutoNauta/REVISION-DISENO-2.2.md`.
+
+## Release 2.2.1 — VPN opcional
+
+La entrega actual es **2.2.1.0**. `Connectivity.CheckCurrent` elige la interfaz de salida que Windows indica para cada sonda HTTPS, sin exigir WireGuard ni otro cliente. El portal conserva su acceso separado por la interfaz física. No se cambia ni desconecta una VPN existente y no se declaran conectadas las respuestas de un portal cautivo.
+
+Las descripciones anteriores de comprobación obligatoria por VPN son el contexto histórico de las versiones 2.1 y 2.2. Desde 2.2.1 el indicador verde confirma Internet por la salida actual del sistema. Pasan 65 pruebas, incluidas salida sin VPN, salida de túnel, ausencia de ruta, portal cautivo y cancelación.
+
+`Preparar-Release.ps1` empaqueta únicamente el ejecutable, `docs/GUIA-AMIGOS.txt` y sumas SHA-256 en `outputs/releases/v2.2.1/`. Los ZIP se adjuntan a GitHub Releases; no incluyen configuración, cuentas, sesiones, perfiles VPN ni diagnósticos locales. Notas de la beta: `docs/releases/v2.2.1.md`.
