@@ -110,3 +110,9 @@ Codex compiló e instaló 2.3.0.0. Pasaron las 76 pruebas, las pruebas visuales 
 83 pruebas correctas, cero fallos; prueba visual a 150 % con salida 0 y 26 capturas. Instalación 2.3.1.0 conserva la configuración y el contador vinculado. Se cancelan ciclos anteriores ante un cambio de red y se comprueba primero el enlace físico, con reintentos breves durante recuperación. Muestra de consumo conectado: aproximadamente 0,049 % de CPU total, GDI y objetos de usuario estables. Tiempos de campo, evidencia y límites: `../../docs/LATENCIA-2.3.1.md`.
 
 El usuario confirmó desconexión casi instantánea y retorno a verde en aproximadamente 9 s con VPN, frente a 6/16 s antes del cambio. Los avisos de red del registro preceden al verde por aproximadamente 1–2 s; la contribución de Windows, enlace y VPN al tiempo total no se midió por separado.
+
+## Recuperación, contadores y actividad — 2.4.0
+
+92 pruebas correctas, cero fallos. Prueba visual a 100/150/200 %: salida 0 y 30 capturas por escala; listas con texto largo idénticas antes y después de redimensionar. Se comprobaron copia de filas, copia completa y selección con un destino de portapapeles simulado. El usuario confirmó los contadores, copia y corrección de texto duplicado después de instalar 2.4: «Sí, todo funciona bien».
+
+Los errores del contador tras login no frenan la comprobación de Internet; errores posteriores al intento activan recuperación breve y diagnóstico por fase/tipo/código. Se reprodujo un fallo de reemplazo de configuración y se añadieron reintentos acotados. La excepción original de las 17:19:39 no se puede atribuir con certeza a ese fallo. Medición breve en segundo plano: 0,032 % de CPU total, GDI y objetos de usuario estables. Evidencia, definición de contadores y pendientes de campo: `../../docs/ESTADOS-2.4.0.md`.

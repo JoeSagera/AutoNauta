@@ -1,4 +1,4 @@
-AUTONAUTA 2.3.1 — BETA PARA WINDOWS X64
+AUTONAUTA 2.4.0 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -52,11 +52,24 @@ usuario de Windows en %LOCALAPPDATA%\AutoNauta. No compartas esa carpeta.
 Puedes usar Eliminar cuenta en la aplicación para borrar los datos guardados.
 
 ALCANCE DE LA BETA
-Se comprobaron 83 pruebas locales, la interfaz y la consulta del contador
+Se comprobaron 92 pruebas locales, la interfaz y la consulta del contador
 en una sesión real de Nauta Hogar. La reconexión completa durante una nueva
 caída real de Nauta todavía requiere validación de campo.
 No repara una línea ADSL sin señal. No arranca automáticamente con Windows.
 El programa no está afiliado a ETECSA ni a Proton.
+
+CONTADORES Y ACTIVIDAD
+Esta ejecución muestra caídas confirmadas, recuperaciones de Internet,
+intentos AUTO y AUTO efectivos. Solo es efectivo un login que Nauta
+confirma y después recupera Internet. Una caída se cuenta una sola vez;
+los cambios de color y las pausas no multiplican los números. Se mantienen
+al pausar/reanudar y empiezan de cero al cerrar y abrir el programa.
+
+Copiar actividad copia las últimas 50 entradas mostradas. También puedes
+seleccionar filas y pulsar Ctrl+C, o Ctrl+A para seleccionar todas. Doble
+clic abre el detalle completo, donde puedes seleccionar parte del texto.
+El menú de clic derecho permite Ver registro completo para consultar el
+archivo guardado, incluido lo anterior a esta apertura.
 
 ACTUALIZAR
 Cierra AutoNauta mediante Salir y reemplaza el ejecutable por el nuevo.

@@ -99,3 +99,9 @@ En verde y sin interacción, el indicador se esconde en el lateral más cercano 
 ## Respuesta al cable y cambios de red (2.3.1)
 
 Los cambios de red interrumpen la petición anterior y despiertan la vigilancia. Si no hay enlace físico disponible, el indicador muestra «Sin conexión de red» sin esperar una sonda de Internet. Al recuperar el enlace, se comprueba enseguida y se hacen reintentos breves; el verde requiere Internet confirmado. En conexión estable se mantiene el intervalo normal. Pasaron 83 pruebas. Evidencia, consumo y límites: `docs/LATENCIA-2.3.1.md`.
+
+## Recuperación, estadísticas y actividad copiable (2.4.0)
+
+Un error auxiliar del contador tras un login no impide comprobar Internet. Los errores después del intento activan comprobaciones de recuperación sin exigir un clic manual. El registro identifica fase, tipo y código del error, omitiendo mensajes que podrían contener datos de sesión; la escritura de configuración reintenta bloqueos transitorios de Windows de forma acotada.
+
+La ventana muestra caídas, recuperaciones, intentos AUTO y AUTO efectivos durante esta ejecución. Ofrece copia de actividad, selección múltiple, detalle seleccionable y acceso al registro completo. La lista se redibuja correctamente al cambiar de tamaño. Pasaron 92 pruebas y la revisión visual a tres escalas. Definiciones, diagnóstico del incidente de las 17:19:39 y límites: `docs/ESTADOS-2.4.0.md`.

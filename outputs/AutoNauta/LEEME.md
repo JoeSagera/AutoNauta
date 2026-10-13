@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.3.1.0**, con respuesta a cambios de cable/red, LED lateral discreto y cápsula más pequeña. Conserva la reconexión sin depender del popup y el contador de Nauta Hogar corregidos en 2.2.2. La cuenta existente se conserva. Detalles de respuesta y límites: `../../docs/LATENCIA-2.3.1.md`. Revisión del diseño: `REVISION-LED-LATERAL-2.3.md`.
+Entrega actual: **2.4.0.0**, con recuperación tras errores posteriores al login, estadísticas de esta ejecución y actividad copiable. Conserva el LED lateral, la respuesta al cable y el contador de horas. La cuenta existente se conserva. Revisión y límites: `../../docs/ESTADOS-2.4.0.md`.
 
 ## Empezar
 
@@ -28,6 +28,12 @@ Arrastra el LED o el fondo de la barra para moverlo. Doble clic abre la ventana 
 En verde, si no lo tocas, el LED se esconde medio segundo después en el **borde izquierdo o derecho más cercano** del monitor donde lo dejaste. Queda a la misma altura, como una pequeña muesca con una gota verde. Lleva el mouse a esa muesca para ver la barra; se abre hacia el centro de la pantalla. Al retirar el mouse espera medio segundo y vuelve a esconderse.
 
 En amarillo, rojo o gris el LED vuelve en el acto a su sitio habitual. Con la chincheta, con el menú abierto o mientras lo arrastras, no se esconde. Para cambiar el borde o la altura, arrastra la barra: el lateral se elige a partir de la nueva posición. **Recuperar LED** lo muestra unos segundos sin abrir la ventana ni quitar el foco al juego o programa activo.
+
+### Estadísticas y registro
+
+**Esta ejecución** cuenta caídas confirmadas, recuperaciones, intentos AUTO y AUTO efectivos desde el primer inicio de vigilancia en esta apertura. No cuenta el inicio sin Internet como caída ni multiplica un episodio por sus cambios de color. AUTO efectivo exige confirmación de Nauta y de Internet. Pausar/reanudar conserva los números; cerrar el programa los reinicia.
+
+**Copiar actividad** copia las últimas 50 filas. Selecciona una o varias con Ctrl/Mayús y usa Ctrl+C; Ctrl+A selecciona todas. Doble clic o Intro abre el detalle para seleccionar texto. El menú de clic derecho también ofrece **Ver registro completo…**, con el archivo guardado de aperturas anteriores. Al ampliar la ventana se redibuja cada fila completa para evitar restos de texto.
 
 ## Login automático independiente
 

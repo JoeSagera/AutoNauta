@@ -40,7 +40,7 @@ namespace NautaReconnect
             if (preview) {
                 Theme.OverrideScale(Environment.GetEnvironmentVariable("AUTONAUTA_UI_SCALE"));
                 // The preview never reads the network: fixed example values show the layout.
-                previewMetrics = new Telemetry { Remaining = TimeSpan.FromMinutes(125 * 60 + 9), DownloadBytesPerSecond = 250000, UploadBytesPerSecond = 37500, RatesReady = true, AccountCheckedUtc = DateTime.UtcNow, AccountNote = "Datos de ejemplo de la vista previa." };
+                previewMetrics = new Telemetry { Remaining = TimeSpan.FromMinutes(125 * 60 + 9), DownloadBytesPerSecond = 250000, UploadBytesPerSecond = 37500, RatesReady = true, AccountCheckedUtc = DateTime.UtcNow, AccountNote = "Datos de ejemplo de la vista previa.",ServiceStartedUtc=DateTime.UtcNow.AddHours(-2),ConnectionDrops=5,ConnectionRecoveries=4,AutoLoginAttempts=3,AutoLoginSuccesses=2 };
             }
             main = new MainWindow(preview);
             main.FormClosing += delegate(object sender, FormClosingEventArgs e) {
@@ -69,6 +69,8 @@ namespace NautaReconnect
             positionTimer = new System.Windows.Forms.Timer { Interval = 650 }; positionTimer.Tick += delegate { positionTimer.Stop(); PersistPosition(); };
             main.Minimize.Click += delegate { HideMain(); }; main.Exit.Click += delegate { ExitRequested(); }; main.Toggle.Click += delegate { ToggleRunning(); };
             main.Check.Click += delegate { RunCommand(delegate { controller.CheckNow(); },null); }; main.Save.Click += delegate { SaveAccount(); };
+            main.CopyActivity.Click+=delegate{main.Log.Copy(true);};
+            main.Log.FullLogRequested+=delegate{try{string path=Path.Combine(Program.DataPath,"eventos.log");main.Log.ShowText("Registro completo",preview?"Vista previa: no se lee el registro personal.":File.Exists(path)?SafeText(File.ReadAllText(path)):"Todavía no hay un registro guardado.");}catch(IOException){MessageBox.Show(main,"No se pudo leer el registro. Inténtalo de nuevo.","Actividad",MessageBoxButtons.OK,MessageBoxIcon.Information);}};
             main.Automatic.Click+=delegate{ToggleAutomatic();};
             main.Clear.Click += delegate { ClearAccount(); };
             main.EditAccount.Click += delegate { BeginEditAccount(); }; main.CancelEdit.Click += delegate { CancelEditAccount(); };
@@ -101,6 +103,8 @@ namespace NautaReconnect
                 Theme.SetText(main.UpValue,data.RatesReady ? RateMonitor.Speed(data.UploadBytesPerSecond) : "—");
                 string note = SafeText(TimeNote(data)); Theme.SetText(main.TimeNote,note);
                 if (note != noteTip) { noteTip = note; main.Tips.SetToolTip(main.TimeNote,ActivityList.Wrap(note,80)); }
+                Theme.SetText(main.StatisticsSince,data.ServiceStartedUtc==DateTime.MinValue?"La vigilancia no ha iniciado":"Desde las "+data.ServiceStartedUtc.ToLocalTime().ToString("HH:mm:ss"));
+                Theme.SetText(main.DropsValue,data.ConnectionDrops.ToString());Theme.SetText(main.RecoveriesValue,data.ConnectionRecoveries.ToString());Theme.SetText(main.AttemptsValue,data.AutoLoginAttempts.ToString());Theme.SetText(main.SuccessesValue,data.AutoLoginSuccesses.ToString());
             }
             indicator.SetMetrics(data);
         }
@@ -132,7 +136,7 @@ namespace NautaReconnect
             string tip = "AutoNauta · " + message; tray.Text = tip.Length > 63 ? tip.Substring(0,63) : tip;
             string flat = info.Replace("\r"," ").Replace("\n"," "), entry = message + (flat.Length > 0 ? " — " + flat : "");
             if (entry != previousLog) {
-                previousLog = entry; if (flat.Length > 1600) flat = flat.Substring(0,1600) + "…";
+                previousLog = entry;
                 main.Log.Items.Insert(0,new ActivityEntry(status.Time.ToLocalTime(),status.Light,message,flat)); while(main.Log.Items.Count > 50) main.Log.Items.RemoveAt(main.Log.Items.Count - 1);
             }
         }
@@ -330,6 +334,13 @@ namespace NautaReconnect
             indicator.SetAutomatic(true);indicator.SetPinned(false);indicator.SetExpanded(false,true);Assert(!indicator.Expanded&&indicator.CurrentWidth==indicator.CollapsedSize.Width,"Quitar fijación permite volver al LED.");
             Application.DoEvents();
             Snapshot(main,Path.Combine(folder,"ui-main.png"));
+            Action<string> oldCopy=main.Log.CopySink;string copied=null;
+            try{
+                main.Log.CopySink=text=>copied=text;main.Log.ClearSelected();main.Log.SetSelected(0,true);if(main.Log.Items.Count>1)main.Log.SetSelected(1,true);
+                main.Log.TestKey(Keys.Control|Keys.C);Assert(copied==main.Log.CopyText(false)&&copied.Contains(" | "),"Ctrl+C copia entradas completas seleccionadas, sin elipsis de pantalla.");
+                main.CopyActivity.PerformClick();Assert(copied==main.Log.CopyText(true),"Copiar actividad incluye todas las filas.");
+                main.Log.TestKey(Keys.Control|Keys.A);Assert(main.Log.SelectedIndices.Count==main.Log.Items.Count,"Ctrl+A selecciona todas las entradas.");
+            }finally{main.Log.CopySink=oldCopy;main.Log.ClearSelected();}
             smokeInteractive=true;RefreshActions();Application.DoEvents();Snapshot(main,Path.Combine(folder,"ui-main-activa.png"));
             ApplyMetrics(unknown);ApplyStatus(new Status(Light.Red,"Error del portal","Nauta devolvió un error al iniciar sesión. Revisa la cuenta guardada o inténtalo más tarde; no se repite el intento automáticamente."));
             SetHint("Introduce tu cuenta completa de navegación, terminada en @nauta.com.cu.",true);Application.DoEvents();Snapshot(main,Path.Combine(folder,"ui-main-error.png"));
@@ -341,6 +352,16 @@ namespace NautaReconnect
                 editingAccount=false;RefreshAccount();RefreshActions();Application.DoEvents();
                 Assert(!main.AccountExpanded&&main.AccountSummary.Text.StartsWith("ej•••@"),"Con cuenta guardada se muestra un resumen sin la cuenta completa.");
                 Snapshot(main,Path.Combine(folder,"ui-main-cuenta-guardada.png"));
+                string longDetail="Conexión comprobada a través de la interfaz de ejemplo. El programa permanece esperando. "+new string('x',300);
+                main.Log.Items.Insert(0,new ActivityEntry(DateTime.Now,Light.Red,"No se pudo continuar","Fase: guardar contador del login. Tipo: IOException. Código: 0x80070497. Diagnóstico de ejemplo, sin datos personales."));
+                main.Log.Items.Insert(0,new ActivityEntry(DateTime.Now,Light.Green,"Internet conectado",longDetail));
+                main.Log.TopIndex=0;
+                Assert(main.Log.CopyText(true).Contains(longDetail),"La copia conserva el detalle largo aunque la pantalla lo abrevie.");
+                Size beforeWide=main.ClientSize;main.ClientSize=new Size(Theme.S(820),Theme.S(900));Application.DoEvents();
+                Assert(main.CopyActivity.Right<=main.Canvas.ClientSize.Width&&main.SuccessesValue.Right<=main.Canvas.ClientSize.Width,"Contadores y copia quedan dentro de la ventana ampliada.");
+                Snapshot(main,Path.Combine(folder,"ui-main-ampliada.png"));Snapshot(main.Log,Path.Combine(folder,"ui-actividad-ampliada.png"));
+                main.ClientSize=new Size(Theme.S(460),Theme.S(600));Application.DoEvents();main.ClientSize=new Size(Theme.S(820),Theme.S(900));Application.DoEvents();
+                main.Log.Update();Snapshot(main,Path.Combine(folder,"ui-main-ampliada-tras-redimensionar.png"));Snapshot(main.Log,Path.Combine(folder,"ui-actividad-tras-redimensionar.png"));main.ClientSize=beforeWide;Application.DoEvents();
                 main.EditAccount.PerformClick();Application.DoEvents();
                 Assert(main.AccountExpanded&&main.CancelEdit.Visible&&main.PasswordField.Visible,"Cambiar cuenta muestra el formulario y permite cancelar.");
                 main.CancelEdit.PerformClick();Application.DoEvents();Assert(!main.AccountExpanded&&password.Text.Length==0,"Cancelar pliega el formulario y descarta la contraseña escrita.");

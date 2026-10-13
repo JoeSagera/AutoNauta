@@ -8,9 +8,10 @@ using System.Reflection;
 namespace NautaReconnect {
     public static class CoreTests {
         static int passed,failed;
-        static void Check(string name, Action test) { try { test(); passed++; Console.WriteLine("PASS " + name); } catch(Exception e) { failed++; Console.WriteLine("FAIL " + name + ": " + e.Message); } }
+        static void Check(string name, Action test) { try { test(); passed++; Console.WriteLine("PASS " + name); } catch(Exception e) { failed++;Console.WriteLine("FAIL " + name + ": " +e.GetBaseException().GetType().Name+" 0x"+e.GetBaseException().HResult.ToString("X8")+" "+ e.GetBaseException().Message); } }
         static void Assert(bool value, string message) { if(!value) throw new Exception(message); }
         static readonly Uri Origin = new Uri("https://secure.etecsa.net:8443/nauta/login.jsp");
+        sealed class SharingFailure:IOException{internal SharingFailure(int code=32):base("fake-sensitive-session-data"){HResult=unchecked((int)0x80070000)|code;}}
         static string LoginHtml(string target) {
             return "<html><form id='formulario' method='post' action='"+target+"'><input type=hidden name=CSRFHW value='a&amp;b'><input name=wlanuserip type=hidden value='192.0.2.1'><input type=text name=username><input type=password name=password><input type=submit name=submit value=Aceptar></form></html>";
         }
@@ -53,15 +54,18 @@ namespace NautaReconnect {
         sealed class WorkerScenario:IDisposable{
             readonly string path=Path.Combine(Path.GetTempPath(),"AutoNautaNetworkEvents-"+Guid.NewGuid().ToString("N"));
             internal readonly Engine Engine;
+            internal readonly FakePortal Portal=new FakePortal();
             internal volatile bool Physical=true,Connected=true;
             internal int InternetChecks;
             internal Func<CancellationToken,bool> OnInternet;
-            internal WorkerScenario(){
+            internal WorkerScenario(bool allowPortal=false){
                 var link=new NetworkLink{Name="Red de prueba",Index=10,LocalIp=IPAddress.Parse("192.0.2.20")};
-                Engine=new Engine(new SettingsStore(path),false,new EngineNetwork{
+                var store=new SettingsStore(path);if(allowPortal)store.Save(new AppSettings{Username="test@nauta.com.cu",ProtectedPassword=SettingsStore.Protect("fake-password")});
+                Engine=new Engine(store,false,new EngineNetwork{
                     PhysicalReady=()=>Physical,
                     Internet=token=>{Interlocked.Increment(ref InternetChecks);bool online=OnInternet==null?Connected:OnInternet(token);return new ConnectionCheck{Connected=online,Interface=link};},
-                    Router=()=>{throw new Exception("No debe consultar el portal en esta prueba");}
+                    Router=()=>{if(allowPortal)return link;throw new Exception("No debe consultar el portal en esta prueba");},
+                    Captive=(router,token)=>CaptiveState.LoginRequired,PortalAddress=(router,cached,token)=>IPAddress.Parse("192.0.2.30"),Client=(router,address)=>Portal
                 });
             }
             internal void WaitFor(Func<bool> condition,int milliseconds=2000){
@@ -72,6 +76,68 @@ namespace NautaReconnect {
             public void Dispose(){Engine.Shutdown();foreach(string file in Directory.GetFiles(path))File.Delete(file);Directory.Delete(path);}
         }
         public static int Run() {
+            Check("Estadísticas cuentan episodios y AUTO solo tras confirmar Internet",delegate{
+                using(var test=new Scenario()){
+                    test.Internet=true;test.Cycle();test.Internet=false;test.Cycle();Assert(test.Engine.Metrics.ConnectionDrops==0,"Cuenta una sola sonda fallida como caída");test.Cycle();
+                    Assert(test.Engine.Metrics.ConnectionDrops==1&&test.Engine.Metrics.AutoLoginAttempts==1&&test.Engine.Metrics.AutoLoginSuccesses==0,"Confunde aceptación de Nauta con Internet disponible");
+                    string session=test.Engine.Settings.ProtectedSession;test.Cycle();test.Cycle();Assert(test.Portal.Logins==1&&test.Engine.Settings.ProtectedSession==session,"Repite login o descarta contador mientras espera la salida de Internet");
+                    test.Internet=true;test.Cycle();test.Cycle();var data=test.Engine.Metrics;
+                    Assert(data.ConnectionDrops==1&&data.ConnectionRecoveries==1&&data.AutoLoginAttempts==1&&data.AutoLoginSuccesses==1,"Duplica estados o no atribuye recuperación confirmada");
+                    test.Internet=false;test.Cycle();test.Cycle();Assert(test.Engine.Metrics.ConnectionDrops==2&&test.Portal.Logins==1,"Un login ya recuperado oculta una nueva caída o elimina la espera entre autenticaciones");
+                }
+            });
+            Check("Estadísticas excluyen pausa e inicio offline y conservan el comienzo",delegate{
+                var stats=new ServiceStatistics();stats.Begin();var start=stats.StartedUtc;stats.Drop();stats.Attempt();stats.Accepted();stats.Healthy();stats.Suspend();stats.Drop();stats.Begin();
+                Assert(stats.Drops==0&&stats.Recoveries==0&&stats.AutoAttempts==1&&stats.AutoSuccesses==1&&stats.StartedUtc==start,"Cuenta inicio offline/pausa o reinicia el periodo al reanudar");
+                stats.Healthy();stats.Drop();stats.Drop();stats.Healthy();Assert(stats.Drops==1&&stats.Recoveries==1,"Cuenta cada aviso dentro de una misma caída");
+            });
+            Check("Login rechazado o importación manual no cuentan como AUTO efectivo",delegate{
+                var stats=new ServiceStatistics();stats.Begin();stats.Healthy();stats.Drop();stats.Attempt();stats.ForgetAuto();stats.Healthy();stats.Drop();stats.Attempt();stats.Accepted();stats.ForgetAuto();stats.Healthy();
+                Assert(stats.AutoAttempts==2&&stats.AutoSuccesses==0&&stats.Recoveries==2,"Atribuye recuperación manual o rechazo a un AUTO efectivo");
+            });
+            Check("Fallo del contador tras login no impide recuperar Internet",delegate{
+                using(var test=new Scenario()){
+                    var services=(EngineNetwork)typeof(Engine).GetField("network",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(test.Engine);services.CaptureSession=(form,response,user)=>{throw new IOException("fake-secret-counter");};
+                    test.Portal.OnLogin=(form,user,password,token)=>{test.Internet=true;return new PageResponse{Code=200,Uri=new Uri(Origin,"/web/online.do"),Body=OnlineHtml()};};
+                    test.Cycle();test.Cycle();Assert(test.Engine.Current.Light==Light.Green&&test.Engine.Metrics.AutoLoginSuccesses==1,"Un error auxiliar deja rojo un login efectivo");
+                    string log=File.ReadAllText(Path.Combine(test.DirectoryPath,"eventos.log"));Assert(log.Contains("IOException")&&log.Contains("guardar contador")&&!log.Contains("fake-secret-counter"),"Oculta fase/tipo o filtra el secreto del error");
+                }
+            });
+            Check("Error después del POST vuelve a verde sin Comprobar ahora",delegate{
+                using(var test=new WorkerScenario(true)){
+                    test.Connected=false;test.Portal.OnLogin=(form,user,password,token)=>{test.Connected=true;throw new IOException("fake-sensitive-url-CSRF");};
+                    bool sawCheck=false;test.Engine.StatusChanged+=delegate{if(test.Engine.Current.Message=="Comprobando Internet tras login")sawCheck=true;};
+                    test.Engine.Start();test.WaitFor(()=>test.Engine.Current.Light==Light.Green,6500);
+                    Assert(sawCheck&&test.Portal.Logins==1&&test.Engine.Metrics.AutoLoginAttempts==1&&test.Engine.Metrics.AutoLoginSuccesses==0,"No recupera por sí solo o atribuye un POST sin confirmación como efectivo");
+                }
+            });
+            Check("Error de verificación conserva AUTO aceptado para la siguiente comprobación",delegate{
+                using(var test=new WorkerScenario(true)){
+                    test.Connected=false;bool probeFailed=false;test.OnInternet=token=>{if(test.Portal.Logins==0)return false;if(!probeFailed){probeFailed=true;throw new InvalidDataException("fake-secret");}return true;};
+                    test.Engine.Start();test.WaitFor(()=>test.Engine.Current.Light==Light.Green,6500);
+                    Assert(test.Portal.Logins==1&&test.Engine.Metrics.AutoLoginSuccesses==1,"Pierde la confirmación de Nauta o necesita un clic manual tras error de sonda");
+                }
+            });
+            Check("Guardar configuración reintenta bloqueo temporal sin perder datos",delegate{
+                string dir=Path.Combine(Path.GetTempPath(),"AutoNautaSharing-"+Guid.NewGuid().ToString("N"));try{
+                    var store=new SettingsStore(dir);var value=new AppSettings{ProtectedPassword=SettingsStore.Protect("fake-password")};store.Save(value);int calls=0;
+                    store.ReplaceFile=(source,destination)=>{if(++calls<3)throw new SharingFailure();File.Replace(source,destination,null);};value.IndicatorX=77;store.Save(value);
+                    Assert(calls==3&&store.Load().IndicatorX==77&&SettingsStore.Unprotect(store.Load().ProtectedPassword)=="fake-password","Pierde actualización o credenciales ante bloqueo transitorio");
+                }finally{foreach(string file in Directory.GetFiles(dir))File.Delete(file);Directory.Delete(dir);}
+            });
+            Check("Guardar configuración limita reintentos y conserva original si falla",delegate{
+                string dir=Path.Combine(Path.GetTempPath(),"AutoNautaSharing-"+Guid.NewGuid().ToString("N"));try{
+                    var store=new SettingsStore(dir);var value=new AppSettings{IndicatorX=10};store.Save(value);int calls=0;store.ReplaceFile=(source,destination)=>{calls++;throw new SharingFailure(1175);};value.IndicatorX=11;bool stopped=false;
+                    try{store.Save(value);}catch(IOException){stopped=true;}
+                    Assert(stopped&&calls==5&&store.Load().IndicatorX==10,"Reintenta indefinidamente o borra la configuración anterior");
+                }finally{foreach(string file in Directory.GetFiles(dir))File.Delete(file);Directory.Delete(dir);}
+            });
+            Check("Guardar configuración no reintenta fallo de disco no transitorio",delegate{
+                string dir=Path.Combine(Path.GetTempPath(),"AutoNautaSharing-"+Guid.NewGuid().ToString("N"));try{
+                    var store=new SettingsStore(dir);var value=new AppSettings();store.Save(value);int calls=0;store.ReplaceFile=(source,destination)=>{calls++;throw new SharingFailure(112);};value.IndicatorX=4;try{store.Save(value);}catch(IOException){}
+                    Assert(calls==1&&store.Load().IndicatorX==-1,"Oculta un fallo permanente de disco o sustituye el original");
+                }finally{foreach(string file in Directory.GetFiles(dir))File.Delete(file);Directory.Delete(dir);}
+            });
             Check("Sin enlace físico no espera DNS ni envía login aunque la VPN figure activa",delegate{
                 using(var test=new Scenario()){
                     test.PhysicalReady=false;test.Internet=true;test.Cycle();

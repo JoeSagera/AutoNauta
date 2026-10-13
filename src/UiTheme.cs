@@ -249,6 +249,7 @@ namespace NautaReconnect
         internal readonly DateTime Time; internal readonly Light Light; internal readonly string Message, Detail;
         internal ActivityEntry(DateTime time,Light light,string message,string detail) { Time = time; Light = light; Message = message ?? ""; Detail = detail ?? ""; }
         public override string ToString() { return Time.ToString("HH:mm:ss") + "  " + Message + (Detail.Length > 0 ? " — " + Detail : ""); }
+        internal string CopyLine(){return Time.ToString("yyyy-MM-dd HH:mm:ss")+" | "+Light+" | "+Message+" | "+Detail;}
     }
 
     // Owner-drawn list: status color, time and message on one line. The full
@@ -256,14 +257,43 @@ namespace NautaReconnect
     internal sealed class ActivityList : ListBox {
         readonly ToolTip tip = new ToolTip { InitialDelay = 500, AutoPopDelay = 15000, ReshowDelay = 200 };
         int tipIndex = -1;
+        readonly ContextMenuStrip copyMenu=new ContextMenuStrip();
+        internal Action<string> CopySink=Clipboard.SetText;
+        internal event EventHandler FullLogRequested;
         internal ActivityList() {
             DrawMode = DrawMode.OwnerDrawFixed; ItemHeight = Theme.S(26); BorderStyle = BorderStyle.None; IntegralHeight = false;
             BackColor = Palette.Surface; ForeColor = Palette.Text; Font = Theme.Small; Margin = Padding.Empty;
+            SelectionMode=SelectionMode.MultiExtended;
+            copyMenu.Renderer=new MenuRenderer();copyMenu.Font=Theme.Body;
+            var selected=new ToolStripMenuItem("Copiar seleccionados",null,delegate{Copy(false);});selected.ShortcutKeys=Keys.Control|Keys.C;
+            var all=new ToolStripMenuItem("Copiar toda la actividad",null,delegate{Copy(true);});all.ShortcutKeys=Keys.Control|Keys.Shift|Keys.C;
+            copyMenu.Items.Add(selected);copyMenu.Items.Add(all);copyMenu.Items.Add(new ToolStripMenuItem("Ver detalle…",null,delegate{ShowDetail();}));
+            copyMenu.Items.Add(new ToolStripMenuItem("Ver registro completo…",null,delegate{var handler=FullLogRequested;if(handler!=null)handler(this,EventArgs.Empty);}));
+            copyMenu.Opening+=delegate{selected.Enabled=SelectedIndices.Count>0;all.Enabled=Items.Count>0;};ContextMenuStrip=copyMenu;
         }
+        internal string CopyText(bool all){var text=new System.Text.StringBuilder();for(int i=0;i<Items.Count;i++)if(all||SelectedIndices.Contains(i)){var entry=Items[i] as ActivityEntry;if(entry==null)continue;if(text.Length>0)text.AppendLine();text.Append(entry.CopyLine());}return text.ToString();}
+        internal void Copy(bool all){string text=CopyText(all);if(text.Length==0)return;try{CopySink(text);}catch(System.Runtime.InteropServices.ExternalException){MessageBox.Show(FindForm(),"El portapapeles está ocupado. Vuelve a intentar copiar.","Copiar actividad",MessageBoxButtons.OK,MessageBoxIcon.Information);}}
+        internal void TestKey(Keys key){OnKeyDown(new KeyEventArgs(key));}
+        protected override void OnKeyDown(KeyEventArgs e){
+            if(e.Control&&e.KeyCode==Keys.C){Copy(e.Shift);e.Handled=e.SuppressKeyPress=true;return;}
+            if(e.Control&&e.KeyCode==Keys.A){BeginUpdate();try{for(int i=0;i<Items.Count;i++)SetSelected(i,true);}finally{EndUpdate();}e.Handled=e.SuppressKeyPress=true;return;}
+            if(e.KeyCode==Keys.Enter){ShowDetail();e.Handled=e.SuppressKeyPress=true;return;}base.OnKeyDown(e);
+        }
+        protected override void OnMouseDown(MouseEventArgs e){if(e.Button==MouseButtons.Right){int row=IndexFromPoint(e.Location);if(row>=0&&!GetSelected(row)){ClearSelected();SetSelected(row,true);}}base.OnMouseDown(e);}
+        protected override void OnDoubleClick(EventArgs e){base.OnDoubleClick(e);ShowDetail();}
+        void ShowDetail(){if(SelectedIndex<0)return;var entry=Items[SelectedIndex] as ActivityEntry;if(entry!=null)ShowText("Detalle de actividad",entry.CopyLine());}
+        internal void ShowText(string title,string content){
+            using(var dialog=new Form{Text=title,StartPosition=FormStartPosition.CenterParent,Size=new Size(Theme.S(560),Theme.S(280)),MinimumSize=new Size(Theme.S(320),Theme.S(160)),BackColor=Palette.Background,ForeColor=Palette.Text,ShowInTaskbar=false}){
+                var text=new TextBox{Multiline=true,ReadOnly=true,WordWrap=true,ScrollBars=ScrollBars.Vertical,Dock=DockStyle.Fill,BorderStyle=BorderStyle.None,Font=Theme.Body,BackColor=Palette.Surface,ForeColor=Palette.Text,Text=content,AccessibleName="Texto completo de actividad"};dialog.Controls.Add(text);dialog.Padding=new Padding(Theme.S(14));dialog.Shown+=delegate{Native.DarkFrame(dialog.Handle);};dialog.ShowDialog(FindForm());
+            }
+        }
+        protected override void OnResize(EventArgs e){base.OnResize(e);Invalidate();tipIndex=-1;if(tip!=null)tip.SetToolTip(this,"");}
         protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.DarkScrollbars(Handle); }
         protected override void OnDrawItem(DrawItemEventArgs e) {
             if(e.Index < 0 || e.Index >= Items.Count) return;
-            var entry = Items[e.Index] as ActivityEntry; Graphics g = e.Graphics; Rectangle r = e.Bounds;
+            var entry = Items[e.Index] as ActivityEntry; Graphics g = e.Graphics; Rectangle r = new Rectangle(0,e.Bounds.Y,ClientSize.Width,e.Bounds.Height);
+            var paintState=g.Save();g.SetClip(r,System.Drawing.Drawing2D.CombineMode.Intersect);
+            try{
             bool selected = (e.State & DrawItemState.Selected) != 0 && Focused;
             using(Brush back = new SolidBrush(selected ? Palette.Raised : BackColor)) g.FillRectangle(back,r);
             if(entry == null) return;
@@ -281,6 +311,7 @@ namespace NautaReconnect
             int detailX = x + messageWidth + Theme.S(8);
             if(entry.Detail.Length > 0 && r.Right - Theme.S(8) - detailX > Theme.S(24))
                 TextRenderer.DrawText(g,entry.Detail,Font,new Rectangle(detailX,r.Y,r.Right - Theme.S(8) - detailX,r.Height),Palette.Muted,flags);
+            }finally{g.Restore(paintState);}
         }
         protected override void OnMouseMove(MouseEventArgs e) {
             base.OnMouseMove(e); int index = IndexFromPoint(e.Location);
@@ -298,7 +329,7 @@ namespace NautaReconnect
             }
             return builder.ToString();
         }
-        protected override void Dispose(bool disposing) { if(disposing) tip.Dispose(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { if(disposing){tip.Dispose();copyMenu.Dispose();} base.Dispose(disposing); }
     }
 
     // Surface that paints the rounded cards behind the controls of the window.

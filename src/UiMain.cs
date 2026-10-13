@@ -11,17 +11,19 @@ namespace NautaReconnect
         internal readonly CanvasPanel Canvas;
         internal readonly Label PreviewBanner, StateLabel, StateTime, StateDetail, TimeValue, DownValue, UpValue, TimeNote;
         internal readonly Label WatchTitle, WatchDescription, AutoTitle, AutoDescription;
+        internal readonly Label StatisticsTitle,StatisticsSince,DropsValue,RecoveriesValue,AttemptsValue,SuccessesValue;
+        readonly Label dropsCaption,recoveriesCaption,attemptsCaption,successesCaption;
         internal readonly Label AccountTitle, AccountSummary, AccountHint, UserCaption, PasswordCaption, ActivityTitle, FooterNote;
         readonly Label timeCaption, downCaption, upCaption;
         internal readonly LedDot StateDot;
-        internal readonly FlatButton Check, Toggle, EditAccount, CancelEdit, Save, Clear, Minimize, Exit;
+        internal readonly FlatButton Check, Toggle, EditAccount, CancelEdit, Save, Clear, Minimize, Exit,CopyActivity;
         internal readonly ToggleSwitch Automatic;
         internal readonly FieldBox UserField, PasswordField;
         internal readonly ActivityList Log;
         internal readonly ToolTip Tips;
         readonly bool preview;
         bool accountExpanded = true, accountCancelable, arranging;
-        Rectangle bannerCard, statusCard, controlCard, accountCard, activityCard;
+        Rectangle bannerCard, statusCard, controlCard, accountCard, activityCard,statisticsCard;
         int statusDivider, controlDivider, dividerLeft, dividerRight, preferredHeight;
 
         internal MainWindow(bool preview) {
@@ -69,6 +71,12 @@ namespace NautaReconnect
             Clear = new FlatButton("Eliminar cuenta",ButtonKind.Danger);
 
             ActivityTitle = Make("Actividad reciente",Theme.Section,Palette.Secondary,Palette.Background);
+            CopyActivity=new FlatButton("Copiar actividad",ButtonKind.Quiet){BackColor=Palette.Background};
+            StatisticsTitle=Make("Esta ejecución",Theme.Section,Palette.Secondary,Palette.Background);
+            StatisticsSince=Make("La vigilancia no ha iniciado",Theme.Small,Palette.Muted,Palette.Background);
+            dropsCaption=Make("Caídas",Theme.Small,Palette.Muted,surface);recoveriesCaption=Make("Recuperaciones",Theme.Small,Palette.Muted,surface);
+            attemptsCaption=Make("Intentos AUTO",Theme.Small,Palette.Muted,surface);successesCaption=Make("AUTO efectivos",Theme.Small,Palette.Muted,surface);
+            DropsValue=Make("0",Theme.Metric,Palette.Text,surface);RecoveriesValue=Make("0",Theme.Metric,Palette.Text,surface);AttemptsValue=Make("0",Theme.Metric,Palette.Text,surface);SuccessesValue=Make("0",Theme.Metric,Palette.Text,surface);
             Log = new ActivityList { AccessibleName = "Actividad reciente" };
             FooterNote = Make("Cerrar la ventana no detiene AutoNauta.",Theme.Small,Palette.Muted,Palette.Background); FooterNote.TextAlign = ContentAlignment.MiddleLeft; FooterNote.AutoEllipsis = true;
             Minimize = new FlatButton("Minimizar",ButtonKind.Secondary) { BackColor = Palette.Background };
@@ -77,7 +85,7 @@ namespace NautaReconnect
             // Insertion order is the keyboard order: top to bottom, left to right.
             Control[] order = { PreviewBanner,StateDot,StateLabel,StateTime,StateDetail,timeCaption,TimeValue,downCaption,DownValue,upCaption,UpValue,TimeNote,Check,
                 WatchTitle,WatchDescription,Toggle,AutoTitle,AutoDescription,Automatic,AccountTitle,AccountSummary,EditAccount,CancelEdit,
-                UserCaption,UserField,PasswordCaption,PasswordField,AccountHint,Save,Clear,ActivityTitle,Log,FooterNote,Minimize,Exit };
+                UserCaption,UserField,PasswordCaption,PasswordField,AccountHint,Save,Clear,StatisticsTitle,StatisticsSince,dropsCaption,DropsValue,recoveriesCaption,RecoveriesValue,attemptsCaption,AttemptsValue,successesCaption,SuccessesValue,ActivityTitle,CopyActivity,Log,FooterNote,Minimize,Exit };
             for(int i = 0; i < order.Length; i++) { order[i].TabIndex = i; Canvas.Controls.Add(order[i]); }
 
             string traffic = "Tráfico total del equipo en sus interfaces físicas, incluidas otras aplicaciones.\nNo es un test de velocidad.";
@@ -88,6 +96,11 @@ namespace NautaReconnect
             Tips.SetToolTip(Clear,"Borra la cuenta y la contraseña guardadas en esta computadora.");
             Tips.SetToolTip(Minimize,"Oculta la ventana. El LED y la vigilancia siguen activos.");
             Tips.SetToolTip(Exit,"Cierra AutoNauta por completo y detiene la vigilancia.");
+            Tips.SetToolTip(DropsValue,"Caídas confirmadas después de tener Internet: una por episodio, no por cambio de color. Las pausas no cuentan.");
+            Tips.SetToolTip(RecoveriesValue,"Episodios de caída que volvieron a tener Internet comprobado, con o sin login.");
+            Tips.SetToolTip(AttemptsValue,"Intentos de login iniciados por AutoNauta durante esta ejecución.");
+            Tips.SetToolTip(SuccessesValue,"Nauta confirmó el login automático y después se verificó Internet. Un login rechazado, en uso o sin respuesta no cuenta como efectivo.");
+            Tips.SetToolTip(CopyActivity,"Copia las últimas 50 entradas completas. En la lista: Ctrl+C copia seleccionados; Ctrl+A selecciona todo; doble clic permite seleccionar texto del detalle.");
 
             Canvas.Paint += PaintCards;
             Canvas.Layout += delegate { Arrange(); };
@@ -184,7 +197,12 @@ namespace NautaReconnect
                 }
                 accountCard = new Rectangle(m,top,cardW,y - top); y += gap + Theme.S(6);
 
-                Place(ActivityTitle,m + Theme.S(4),y + oy,cardW - Theme.S(8),Theme.S(20)); y += Theme.S(26);
+                Place(StatisticsTitle,m+Theme.S(4),y+oy,Theme.S(120),Theme.S(20));Place(StatisticsSince,m+Theme.S(124),y+oy,cardW-Theme.S(128),Theme.S(20));y+=Theme.S(26);
+                statisticsCard=new Rectangle(m,y,cardW,Theme.S(66));int statW=w/4;
+                Label[] captions={dropsCaption,recoveriesCaption,attemptsCaption,successesCaption},values={DropsValue,RecoveriesValue,AttemptsValue,SuccessesValue};
+                for(int i=0;i<4;i++){Place(captions[i],x+i*statW,y+Theme.S(8)+oy,statW-Theme.S(4),Theme.S(18));Place(values[i],x+i*statW,y+Theme.S(27)+oy,statW-Theme.S(4),Theme.S(28));}
+                y+=Theme.S(66)+gap+Theme.S(6);
+                int copyW=CopyActivity.PreferredWidthFor(CopyActivity.Text);Place(ActivityTitle,m + Theme.S(4),y + oy,cardW-copyW-Theme.S(16),button);Place(CopyActivity,m+cardW-copyW,y+oy,copyW,button); y += button+Theme.S(6);
                 int footer = button, minimum = Theme.S(64), listTop = y;
                 int listH = Math.Max(minimum,Canvas.ClientSize.Height - m - footer - gap - listTop);
                 activityCard = new Rectangle(m,listTop,cardW,listH);
@@ -206,7 +224,7 @@ namespace NautaReconnect
             Graphics g = e.Graphics; g.Clear(Palette.Background);
             int oy = Canvas.AutoScrollPosition.Y, radius = Theme.S(10);
             if(preview) Theme.FillRounded(g,Offset(bannerCard,oy),Theme.S(8),PreviewBanner.BackColor,Mix(Palette.Background,Palette.Warning,.3F));
-            foreach(Rectangle card in new Rectangle[] { statusCard,controlCard,accountCard,activityCard }) Theme.FillRounded(g,Offset(card,oy),radius,Palette.Surface,Palette.Border);
+            foreach(Rectangle card in new Rectangle[] { statusCard,controlCard,accountCard,statisticsCard,activityCard }) Theme.FillRounded(g,Offset(card,oy),radius,Palette.Surface,Palette.Border);
             using(Pen line = new Pen(Palette.Border)) {
                 g.DrawLine(line,dividerLeft,statusDivider + oy,dividerRight,statusDivider + oy);
                 g.DrawLine(line,dividerLeft,controlDivider + oy,dividerRight,controlDivider + oy);

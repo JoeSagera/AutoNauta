@@ -38,6 +38,8 @@ namespace NautaReconnect {
         void ImportSessionFile(string path);
     }
     public sealed class Telemetry {
+        public DateTime ServiceStartedUtc=DateTime.MinValue;
+        public int ConnectionDrops,ConnectionRecoveries,AutoLoginAttempts,AutoLoginSuccesses;
         public double DownloadBytesPerSecond,UploadBytesPerSecond;
         public TimeSpan? Remaining;
         public decimal? Credit;

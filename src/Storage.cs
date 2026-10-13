@@ -18,6 +18,7 @@ namespace NautaReconnect {
         readonly object fileGate=new object();
         string savedJson;
         DateTime savedWriteTime;
+        internal Action<string,string> ReplaceFile=(source,destination)=>File.Replace(source,destination,null);
         public SettingsStore(string path) { DirectoryPath=path; ConfigPath=Path.Combine(path,"config.json"); Directory.CreateDirectory(path); }
         public AppSettings Load() {
             if(!File.Exists(ConfigPath)) return new AppSettings();
@@ -30,7 +31,12 @@ namespace NautaReconnect {
             if(json==savedJson&&File.Exists(ConfigPath)&&File.GetLastWriteTimeUtc(ConfigPath)==savedWriteTime)return;
             string temp=ConfigPath+".tmp";
             File.WriteAllText(temp,json,Encoding.UTF8);
-            if(File.Exists(ConfigPath)) File.Replace(temp,ConfigPath,null); else File.Move(temp,ConfigPath);
+            if(File.Exists(ConfigPath)){
+                for(int attempt=0;;attempt++){
+                    try{ReplaceFile(temp,ConfigPath);break;}
+                    catch(IOException error){int code=error.HResult&0xffff;if(attempt>=4||(code!=32&&code!=33&&code!=5&&code!=1175))throw;System.Threading.Thread.Sleep(25*(attempt+1));}
+                }
+            }else File.Move(temp,ConfigPath);
             savedJson=json;savedWriteTime=File.GetLastWriteTimeUtc(ConfigPath);
             }
         }
