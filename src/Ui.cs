@@ -53,6 +53,7 @@ namespace NautaReconnect
             var showMenu = new ToolStripMenuItem("Mostrar AutoNauta"); showMenu.Click += delegate { ShowMain(true); }; menu.Items.Add(showMenu);
             restoreIndicatorMenu = new ToolStripMenuItem("Recuperar LED"); restoreIndicatorMenu.Click += delegate { if(!exiting) indicator.EnsureVisible(); }; menu.Items.Add(restoreIndicatorMenu);
             menu.Items.Add(new ToolStripSeparator());
+            var importMenu=new ToolStripMenuItem("Vincular contador del navegador…");importMenu.Click+=delegate{ImportCounter();};menu.Items.Add(importMenu);
             toggleMenu = new ToolStripMenuItem("Iniciar vigilancia"); toggleMenu.Click += delegate { ToggleRunning(); }; menu.Items.Add(toggleMenu);
             checkMenu = new ToolStripMenuItem("Comprobar ahora"); checkMenu.Click += delegate { RunCommand(delegate { controller.CheckNow(); },null); }; menu.Items.Add(checkMenu);
             automaticMenu=new ToolStripMenuItem("Login automático");automaticMenu.Click+=delegate{ToggleAutomatic();};menu.Items.Add(automaticMenu);
@@ -104,8 +105,8 @@ namespace NautaReconnect
         // Never derived from CUP credit: an unknown time is reported as unknown.
         static string TimeNote(Telemetry data) {
             if (data.Remaining.HasValue) return "Consultado a las " + data.AccountCheckedUtc.ToLocalTime().ToString("HH:mm") + ". " + (data.AccountNote ?? "");
-            if (data.Credit.HasValue) return "Nauta solo informa saldo en CUP; el tiempo aparecerá cuando AutoNauta inicie una sesión nueva.";
-            return String.IsNullOrEmpty(data.AccountNote) ? "El tiempo aparecerá cuando AutoNauta inicie una sesión nueva." : data.AccountNote;
+            if (data.Credit.HasValue) return "Contador disponible con una sesión de AutoNauta o vinculando la del navegador desde el menú del LED.";
+            return String.IsNullOrEmpty(data.AccountNote) ? "Vincula la sesión del navegador desde el menú del LED o espera al próximo login automático." : data.AccountNote;
         }
         void Post(Action action) {
             if (main.IsDisposed || !main.IsHandleCreated) return;
@@ -193,6 +194,15 @@ namespace NautaReconnect
             var answer = MessageBox.Show(main,"¿Eliminar la cuenta y la contraseña guardadas en esta computadora?\n\nAutoNauta pausará la vigilancia. No se cierra una sesión Nauta abierta.","Eliminar cuenta guardada",MessageBoxButtons.YesNo,MessageBoxIcon.Warning,MessageBoxDefaultButton.Button2);
             if(answer != DialogResult.Yes) return;
             RunCommand(delegate { controller.ClearAccount(); },delegate { username.Clear(); password.Clear(); enteredSecret = ""; editingAccount = false; RefreshAccount(); });
+        }
+        void ImportCounter(){
+            if(preview||exiting||pending!=0)return;
+            if(!HasSavedAccount){MessageBox.Show(main,"Guarda primero tu cuenta Nauta.","Vincular contador");return;}
+            MessageBox.Show(main,"En la página de Nauta que muestra el tiempo, pulsa Actualizar.\nGuarda esa página desde el menú de Chrome → Guardar como, en formato HTML.\nDespués selecciona el archivo aquí.\n\nLa página contiene datos privados de tu sesión: no la compartas.","Vincular contador del navegador",MessageBoxButtons.OK,MessageBoxIcon.Information);
+            using(var dialog=new OpenFileDialog{Title="Selecciona la página de sesión Nauta guardada",Filter="Página HTML|*.html;*.htm",CheckFileExists=true,Multiselect=false}){
+                if(dialog.ShowDialog(main)!=DialogResult.OK)return;string path=dialog.FileName;
+                RunCommand(delegate{controller.ImportSessionFile(path);},delegate{ApplyMetrics(CurrentMetrics());},delegate(Exception error){MessageBox.Show(main,error is ArgumentException?SafeText(error.Message):"No se pudo consultar el contador. Revisa el acceso al portal e inténtalo de nuevo.","Vincular contador",MessageBoxButtons.OK,MessageBoxIcon.Information);});
+            }
         }
         void RunCommand(Action action,Action complete,Action<Exception> failed = null) {
             if(preview || exiting || pending != 0) return; pending = 1; RefreshActions();

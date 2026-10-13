@@ -35,6 +35,7 @@ namespace NautaReconnect {
         void Start(); void Pause(); void CheckNow();
         void SaveAccount(string user,string password); void SaveSettings();
         void ClearAccount(); void Shutdown();
+        void ImportSessionFile(string path);
     }
     public sealed class Telemetry {
         public double DownloadBytesPerSecond,UploadBytesPerSecond;

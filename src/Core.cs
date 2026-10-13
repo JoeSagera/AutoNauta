@@ -37,7 +37,7 @@ namespace NautaReconnect {
                 page.Error="Nauta indica un problema de saldo, tiempo o cuota. Revisa tu cuenta."; page.Fatal=true;
             } else if(normalized.Contains("contrasena")||normalized.Contains("password")||normalized.Contains("incorrect")||normalized.Contains("credencial")||normalized.Contains("bloquead")) {
                 page.Error="Nauta rechazó las credenciales o bloqueó la cuenta. Revisa usuario y contraseña."; page.Fatal=true;
-            } else if(normalized.Contains("sesion") && (normalized.Contains("activa")||normalized.Contains("uso")||normalized.Contains("conectad"))) {
+            } else if((normalized.Contains("sesion")||normalized.Contains("usuario")) && (normalized.Contains("activa")||normalized.Contains("uso")||normalized.Contains("conectad"))) {
                 page.Error="La cuenta tiene una sesión en uso. Esperando sin repetir autenticaciones.";
                 page.SessionInUse=true;
             } else page.Error="El portal devolvió un aviso o error. Abre el portal para revisar el mensaje.";
@@ -54,7 +54,8 @@ namespace NautaReconnect {
             clean=Regex.Replace(clean,@"<(script|style)\b[^>]*>[\s\S]*?</\1\s*>","",RegexOptions.IgnoreCase);
             if(Regex.IsMatch(clean,@"captcha|g-recaptcha|hcaptcha",RegexOptions.IgnoreCase)) { page.Fatal=true; page.Error="El portal requiere una comprobación manual (CAPTCHA)."; return page; }
             string text=Normalize(WebUtility.HtmlDecode(Regex.Replace(clean,"<[^>]+>"," ")));
-            if((text.Contains("usted esta conectado")&&text.Contains("cerrar sesion")) ||
+            bool closeControl=Regex.IsMatch(Normalize(clean),@"<input\b[^>]*\bvalue\s*=\s*['""]cerrar sesion['""]",RegexOptions.IgnoreCase);
+            if((text.Contains("usted esta conectado")&&(text.Contains("cerrar sesion")||closeControl)) ||
                (pageUri.AbsolutePath.EndsWith("online.do",StringComparison.OrdinalIgnoreCase)&&clean.Contains("ATTRIBUTE_UUID"))) {
                 page.Connected=true; return page;
             }

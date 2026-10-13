@@ -21,6 +21,7 @@ namespace NautaReconnect {
         DateTime nextAccountCheck=DateTime.MinValue;
         bool accountQueryBlocked;
         readonly SettingsStore store;
+        readonly EngineNetwork network;
         readonly RetryPolicy retry=new RetryPolicy();
         readonly object settingsGate=new object();
         readonly object tokenGate=new object();
@@ -30,8 +31,9 @@ namespace NautaReconnect {
         CancellationTokenSource cycle;
         volatile bool running,closing;
         DateTime loginSucceededUntil=DateTime.MinValue;
-        public Engine(SettingsStore value,bool preview) {
-            store=value;Settings=store.Load();
+        public Engine(SettingsStore value,bool preview):this(value,preview,new EngineNetwork()){}
+        internal Engine(SettingsStore value,bool preview,EngineNetwork services) {
+            store=value;network=services;Settings=store.Load();
             Current=new Status(Light.Gray,"Pausado",preview?"Vista de prueba; no se realizan conexiones.":"Configura tu cuenta y pulsa Iniciar.");
             if(!preview){rates.TopologyChanged+=NetworkChanged;worker=new Thread(Loop);worker.IsBackground=true;worker.Start();rateTimer=new Timer(SampleRates,null,0,1000);}
         }
@@ -83,6 +85,27 @@ namespace NautaReconnect {
             Set(Light.Gray,running?"Cuenta guardada":"Pausado","Cuenta guardada en esta computadora. La contraseña está protegida por Windows.");Signal();
         }
         public void ClearAccount(){Pause();lock(cycleGate){lock(settingsGate){Settings.Username="";Settings.ProtectedPassword="";Settings.ProtectedSession="";store.Save(Settings);retry.AuthBlocked=false;}ResetAccountReading();}Set(Light.Gray,"Pausado","La cuenta guardada se eliminó. No se cerró la sesión Nauta existente.");}
+        public void ImportSessionFile(string path){
+            if(new FileInfo(path).Length>1024*1024)throw new ArgumentException("La página guardada es demasiado grande.");
+            ImportSessionHtml(File.ReadAllText(path));
+        }
+        internal void ImportSessionHtml(string html){
+            lock(tokenGate){if(cycle!=null)cycle.Cancel();}
+            lock(cycleGate){
+                var session=NautaSession.ReadSavedPage(html,Settings.Username);
+                if(session==null)throw new ArgumentException("Selecciona la página HTML de la sesión conectada de Nauta, guardada desde el navegador, con la misma cuenta de AutoNauta.");
+                using(var stop=new CancellationTokenSource(15000)){
+                    var router=network.Router();var client=network.Client(router,network.PortalAddress(router,Settings.LastPortalIp,stop.Token));
+                    var response=client.GetLeftTime(session,stop.Token);var time=response.Code==200?AccountTime.ParseDuration(response.Body):null;
+                    if(!time.HasValue)throw new ArgumentException("Nauta no confirmó el contador. Actualiza el tiempo en la página conectada, guárdala e inténtalo de nuevo.");
+                    lock(settingsGate){Settings.ProtectedSession=SettingsStore.Protect(new JavaScriptSerializer().Serialize(session));store.Save(Settings);}
+                    accountQueryBlocked=false;nextAccountCheck=DateTime.UtcNow.AddSeconds(60);
+                    lock(metricsGate){metrics.Remaining=time;metrics.AccountCheckedUtc=DateTime.UtcNow;metrics.AccountNote="Contador vinculado a la sesión del navegador; se consulta cada minuto.";}
+                    MetricsUpdated();
+                }
+            }
+            Signal();
+        }
         public void Shutdown(){
             if(Interlocked.Exchange(ref shutdownStarted,1)!=0)return;
             closing=true;lock(tokenGate){running=false;if(cycle!=null)cycle.Cancel();}try{wake.Set();}catch(ObjectDisposedException){}
@@ -115,22 +138,23 @@ namespace NautaReconnect {
             return "Comprueba la conexión y la configuración. El detalle técnico se omite para no registrar datos de sesión.";
         }
         void Cycle(CancellationToken token){
-            var connection=Connectivity.CheckCurrent(token);
+            var connection=network.Internet(token);
             if(connection.Connected){retry.Healthy();Set(Light.Green,"Internet conectado","Conexión comprobada a través de "+connection.Interface.Name+". El programa permanece esperando.");RefreshAccount(token);return;}
             if(!retry.ConfirmFailure()){Set(Light.Gray,"Verificando caída","Primer fallo de conectividad; esperando una segunda comprobación.");return;}
             token.ThrowIfCancellationRequested();
-            var router=Networks.Router();string cached;lock(settingsGate)cached=Settings.LastPortalIp;
-            CaptiveState access=CaptiveProbe.Check(router,token);
-            if(access==CaptiveState.Internet){Set(Light.Yellow,"Esperando conexión","El router tiene Internet. Se espera a que la salida del sistema vuelva a responder sin iniciar sesión en Nauta.");RefreshAccount(token);return;}
-            if(access!=CaptiveState.LoginRequired){Set(Light.Gray,"Esperando confirmación de Nauta","La comprobación por el router no confirmó que Nauta solicite acceso. Se espera sin enviar la contraseña.");return;}
-            IPAddress address=Networks.PortalAddress(router,cached,token);
+            var router=network.Router();string cached;lock(settingsGate)cached=Settings.LastPortalIp;
+            CaptiveState access=network.Captive(router,token);
+            if(!EngineNetwork.InspectPortal(access,()=>network.RouterInternet(router,token))){Set(Light.Yellow,"Esperando conexión","El router tiene Internet. Se espera a que la salida del sistema vuelva a responder sin iniciar sesión en Nauta.");RefreshAccount(token);return;}
+            // Missing HTTP redirection does not rule out Nauta. After failed public
+            // probes, inspect the authenticated HTTPS portal before deciding to login.
+            IPAddress address=network.PortalAddress(router,cached,token);
             lock(settingsGate){if(Settings.LastPortalIp!=address.ToString()){Settings.LastPortalIp=address.ToString();store.Save(Settings);}}
             token.ThrowIfCancellationRequested();
-            var client=new PortalClient(router,address);var response=client.Get(token);
+            var client=network.Client(router,address);var response=client.Get(token);
             if(response.Code<200||response.Code>=300){Set(Light.Red,"Error del portal","El portal respondió HTTP "+response.Code+". Se volverá a comprobar sin enviar credenciales.");return;}
             var page=PortalParser.Parse(response.Body,response.Uri);
             if(page.Connected){Set(Light.Yellow,"Esperando conexión","Nauta informa que la sesión está abierta. Se espera a recuperar Internet sin volver a autenticar.");RefreshAccount(token);return;}
-            if(page.SessionInUse){retry.AuthBlocked=true;Set(Light.Yellow,"Sesión Nauta en uso","Se espera sin volver a autenticar. Cuando se libere la cuenta, guárdala de nuevo para permitir otro intento.");return;}
+            if(page.SessionInUse){Set(Light.Yellow,"Sesión Nauta en uso","Se espera a que Nauta libere la sesión, sin bloquear permanentemente la cuenta.");return;}
             if(!page.Login){if(page.Fatal)retry.AuthBlocked=true;Set(Light.Red,"Error del portal",page.Error);return;}
             if(!String.IsNullOrEmpty(Settings.ProtectedSession)){lock(settingsGate){Settings.ProtectedSession="";store.Save(Settings);}lock(metricsGate){metrics.Remaining=null;metrics.AccountNote="La sesión anterior terminó; esperando un nuevo contador de Nauta.";}MetricsUpdated();}
             if(!Settings.AutoLoginEnabled){Set(Light.Yellow,"Login automático desactivado","Nauta solicita acceso. La vigilancia continúa sin iniciar sesión automáticamente.");return;}
@@ -144,11 +168,11 @@ namespace NautaReconnect {
             PageResponse logged;try{logged=retry.LoginAttempt(delegate{return client.Login(page,user,password,token);});}finally{password=null;}
             if(logged.Code<200||logged.Code>=300){bool blocked=retry.AuthenticationFailed();Set(Light.Red,"Error al iniciar sesión","Nauta devolvió HTTP "+logged.Code+(blocked?". Se alcanzaron tres fallos; guarda nuevamente la cuenta después de revisar el portal.":". Esperando antes de repetir el intento."));return;}
             var answer=PortalParser.Parse(logged.Body,logged.Uri);
-            var captured=NautaSession.Capture(page,logged,user);if(captured!=null){lock(settingsGate){Settings.ProtectedSession=SettingsStore.Protect(new JavaScriptSerializer().Serialize(captured));store.Save(Settings);}nextAccountCheck=DateTime.MinValue;}
+            var captured=NautaSession.Capture(page,logged,user);if(captured!=null){lock(settingsGate){Settings.ProtectedSession=SettingsStore.Protect(new JavaScriptSerializer().Serialize(captured));store.Save(Settings);}accountQueryBlocked=false;nextAccountCheck=DateTime.MinValue;}
             if(answer.Fatal)retry.AuthBlocked=true;
-            if(answer.SessionInUse){retry.AuthBlocked=true;Set(Light.Yellow,"Sesión Nauta en uso","Se detienen las autenticaciones mientras la cuenta está en uso. Guarda de nuevo la cuenta para reanudar los intentos.");return;}
+            if(answer.SessionInUse){Set(Light.Yellow,"Sesión Nauta en uso","Se espera a que Nauta libere la sesión antes del próximo intento.");return;}
             if(answer.Error.Length>0&&!answer.Login&&!answer.Connected){retry.AuthenticationFailed();Set(Light.Red,"Nauta devolvió un error",answer.Error+(retry.AuthBlocked?" Los intentos quedaron detenidos hasta revisar y guardar de nuevo la cuenta.":""));return;}
-            if(Connectivity.CheckCurrent(token).Connected){retry.Healthy();Set(Light.Green,"Internet recuperado","Acceso a Internet comprobado después de iniciar sesión en Nauta.");RefreshAccount(token);return;}
+            if(network.Internet(token).Connected){retry.Healthy();Set(Light.Green,"Internet recuperado","Acceso a Internet comprobado después de iniciar sesión en Nauta.");RefreshAccount(token);return;}
             if(answer.Connected){loginSucceededUntil=DateTime.UtcNow.AddMinutes(3);Set(Light.Yellow,"Nauta conectado; esperando Internet","La sesión está abierta. El verde aparecerá cuando se confirme el acceso a Internet.");RefreshAccount(token);}
             else {retry.AuthenticationFailed();Set(Light.Red,"Inicio de sesión no confirmado",retry.AuthBlocked?"Tres intentos no confirmados. Revisa el portal y guarda nuevamente la cuenta antes de continuar.":"El portal devolvió el formulario de acceso. No se confirmó la reconexión; se esperará antes de reintentar.");}
         }
@@ -158,7 +182,7 @@ namespace NautaReconnect {
             string user,encrypted,protectedSession;lock(settingsGate){user=Settings.Username;encrypted=Settings.ProtectedPassword;protectedSession=Settings.ProtectedSession;}
             if(String.IsNullOrEmpty(user)||String.IsNullOrEmpty(encrypted)){lock(metricsGate){metrics.AccountNote="Guarda tu cuenta para consultar el tiempo.";}MetricsUpdated();return;}
             try{
-                var router=Networks.Router();var client=new PortalClient(router,Networks.PortalAddress(router,Settings.LastPortalIp,token));
+                var router=network.Router();var client=network.Client(router,network.PortalAddress(router,Settings.LastPortalIp,token));
                 if(!String.IsNullOrEmpty(protectedSession)){
                     NautaSession session=null;try{session=new JavaScriptSerializer().Deserialize<NautaSession>(SettingsStore.Unprotect(protectedSession));}catch{}
                     if(session!=null&&session.ValidFor(user)){

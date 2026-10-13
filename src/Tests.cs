@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
@@ -13,7 +14,68 @@ namespace NautaReconnect {
         static string LoginHtml(string target) {
             return "<html><form id='formulario' method='post' action='"+target+"'><input type=hidden name=CSRFHW value='a&amp;b'><input name=wlanuserip type=hidden value='192.0.2.1'><input type=text name=username><input type=password name=password><input type=submit name=submit value=Aceptar></form></html>";
         }
+        static string OnlineHtml(){
+            return "<div>Usted está conectado</div><input value='Cerrar sesión'>"+
+                "<script>function updateAvailableTime(){var urlParam=\"op=getLeftTime&ATTRIBUTE_UUID=12345678abcdef&CSRFHW=online-csrf\""+
+                "+\"&wlanuserip=192.0.2.20\"+\"&ssid=nauta_hogar\"+\"&loggerId=logger+test%40nauta.com.cu\""+
+                "+\"&domain=\"+\"&username=test@nauta.com.cu\"+\"&wlanacname=\"+\"&wlanmac=\";}</script>";
+        }
+        static string SavedOnline(){return "<!-- saved from url=(0085)https://secure.etecsa.net:8443/web/online.do?CSRFHW=online-csrf& -->"+OnlineHtml();}
+        sealed class FakePortal:IPortalClient{
+            internal int Logins,Queries,TimeQueries;
+            internal string LoginAnswer=OnlineHtml(),TimeAnswer="125:09:30";
+            internal NautaSession LastSession;
+            internal Func<PortalPage,string,string,CancellationToken,PageResponse> OnLogin;
+            public PageResponse Get(CancellationToken token){return new PageResponse{Code=200,Uri=Origin,Body=LoginHtml("/LoginServlet")};}
+            public PageResponse Login(PortalPage form,string user,string password,CancellationToken token){Logins++;if(OnLogin!=null)return OnLogin(form,user,password,token);return new PageResponse{Code=200,Uri=new Uri(Origin,"/web/online.do?CSRFHW=online-csrf"),Body=LoginAnswer};}
+            public PageResponse QueryAccount(PortalPage form,string user,string password,CancellationToken token){Queries++;return new PageResponse{Code=200,Uri=new Uri(Origin,"/EtecsaQueryServlet"),Body="<tr><td>Crédito</td><td>250.00 CUP</td></tr>"};}
+            public PageResponse GetLeftTime(NautaSession session,CancellationToken token){TimeQueries++;LastSession=session;return new PageResponse{Code=200,Body=TimeAnswer,Uri=new Uri(Origin,"/EtecsaQueryServlet")};}
+        }
+        sealed class Scenario:IDisposable{
+            internal readonly string DirectoryPath=Path.Combine(Path.GetTempPath(),"AutoNautaReconnect-"+Guid.NewGuid().ToString("N"));
+            internal readonly FakePortal Portal=new FakePortal();
+            internal readonly Engine Engine;
+            internal bool Internet,RouterInternet;
+            internal CaptiveState Captive=CaptiveState.Unknown;
+            internal int DirectChecks;
+            internal Scenario(){
+                var link=new NetworkLink{Name="Router de prueba",Index=10,LocalIp=IPAddress.Parse("192.0.2.20")};
+                var store=new SettingsStore(DirectoryPath);store.Save(new AppSettings{Username="test@nauta.com.cu",ProtectedPassword=SettingsStore.Protect("fake-password")});
+                Engine=new Engine(store,true,new EngineNetwork{
+                    Internet=token=>new ConnectionCheck{Connected=Internet,Interface=link},Router=()=>link,Captive=(router,token)=>Captive,
+                    RouterInternet=(router,token)=>{DirectChecks++;return RouterInternet;},PortalAddress=(router,cached,token)=>IPAddress.Parse("192.0.2.30"),Client=(router,address)=>Portal});
+                Engine.Start();
+            }
+            internal void Cycle(){typeof(Engine).GetMethod("Cycle",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(Engine,new object[]{CancellationToken.None});}
+            public void Dispose(){Engine.Shutdown();foreach(string file in Directory.GetFiles(DirectoryPath))File.Delete(file);Directory.Delete(DirectoryPath);}
+        }
         public static int Run() {
+            Check("Contador Hogar conserva todo el contexto y el CSRF de online",delegate{
+                var session=NautaSession.Capture(PortalParser.Parse(LoginHtml("/LoginServlet"),Origin),new PageResponse{Uri=new Uri(Origin,"/web/online.do"),Body=OnlineHtml()},"test@nauta.com.cu");
+                Assert(session!=null&&session.Csrf=="online-csrf"&&session.Context.Count==6&&session.Context["ssid"]=="nauta_hogar"&&session.Context["loggerId"]=="logger test@nauta.com.cu"&&session.QueryFields().Count==10,"Pierde campos reales del contador o usa el CSRF anterior");
+            });
+            Check("Contador no admite otra cuenta ni expresiones ejecutables",delegate{
+                Assert(NautaSession.ReadSavedPage(SavedOnline(),"otra@nauta.com.cu")==null,"Importa otra cuenta");
+                Assert(NautaSession.ReadSavedPage(SavedOnline().Replace("+\"&domain=\"","+steal()+\"&domain=\""),"test@nauta.com.cu")==null,"Interpreta código de la página");
+                Assert(NautaSession.ReadSavedPage(SavedOnline().Replace("&username=test@nauta.com.cu","&username=test@nauta.com.cu&username=otra@nauta.com.cu"),"test@nauta.com.cu")==null,"Admite cuenta duplicada");
+            });
+            Check("Importación exige página de sesión del origen HTTPS Nauta",delegate{
+                Assert(NautaSession.ReadSavedPage(SavedOnline(),"test@nauta.com.cu")!=null&&NautaSession.ReadSavedPage(OnlineHtml(),"test@nauta.com.cu")==null&&NautaSession.ReadSavedPage(SavedOnline().Replace("secure.etecsa.net","evil.test"),"test@nauta.com.cu")==null,"Admite página ajena o sin origen");
+            });
+            Check("Consulta de contador no admite operaciones extra",delegate{var session=NautaSession.ReadSavedPage(SavedOnline(),"test@nauta.com.cu");session.Context["op"]="logout";Assert(!session.ValidFor("test@nauta.com.cu"),"Admite operar sobre la sesión desde el contador");});
+            Check("Caída sin popup HTTP recupera sesión y contador",delegate{
+                using(var test=new Scenario()){
+                    test.Portal.OnLogin=(form,user,password,token)=>{Assert(user=="test@nauta.com.cu"&&password=="fake-password"&&form.Login,"Envía otro usuario o un formulario no válido");test.Internet=true;return new PageResponse{Code=200,Uri=new Uri(Origin,"/web/online.do"),Body=OnlineHtml()};};
+                    test.Cycle();Assert(test.Portal.Logins==0,"Autentica ante un solo fallo");test.Cycle();
+                    Assert(test.DirectChecks==1&&test.Portal.Logins==1&&test.Engine.Current.Light==Light.Green&&test.Engine.Metrics.Remaining==AccountTime.ParseDuration("125:09:30")&&test.Portal.LastSession.Csrf=="online-csrf","La ausencia de popup sigue impidiendo recuperar login o contador");
+                }
+            });
+            Check("Fallo VPN con Internet físico no inicia sesión",delegate{using(var test=new Scenario()){test.RouterInternet=true;test.Cycle();test.Cycle();Assert(test.Portal.Logins==0&&test.Engine.Current.Light==Light.Yellow&&test.DirectChecks==1,"Reautentica cuando el router ya tiene Internet");}});
+            Check("Internet funcional no consulta login ni sonda física",delegate{using(var test=new Scenario()){test.Internet=true;test.Cycle();test.Cycle();Assert(test.Portal.Logins==0&&test.DirectChecks==0&&test.Engine.Current.Light==Light.Green,"Hace reconexiones innecesarias");}});
+            Check("MAN sigue detectando portal sin enviar login",delegate{using(var test=new Scenario()){test.Engine.SetAutoLogin(false);test.Cycle();test.Cycle();Assert(test.Portal.Logins==0&&test.Engine.Current.Message=="Login automático desactivado","MAN envía credenciales de login");}});
+            Check("Usuario ya conectado no bloquea permanentemente AUTO",delegate{using(var test=new Scenario()){test.Captive=CaptiveState.LoginRequired;test.Portal.LoginAnswer="<script>alert('El usuario ya está conectado');</script>";test.Cycle();test.Cycle();var retry=(RetryPolicy)typeof(Engine).GetField("retry",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(test.Engine);Assert(test.Portal.Logins==1&&!retry.AuthBlocked&&test.Engine.Current.Message=="Sesión Nauta en uso","Un estado transitorio desactiva AUTO");test.Cycle();Assert(test.Portal.Logins==1,"Repite login sin esperar");}});
+            Check("Vincular contador verifica Nauta y guarda solo contexto protegido",delegate{using(var test=new Scenario()){test.Engine.ImportSessionHtml(SavedOnline());Assert(test.Portal.Logins==0&&test.Portal.TimeQueries==1&&test.Engine.Metrics.Remaining.HasValue,"Importar inicia login o no consulta contador");string file=File.ReadAllText(Path.Combine(test.DirectoryPath,"config.json"));Assert(!file.Contains("online-csrf")&&!file.Contains("12345678abcdef")&&test.Engine.Settings.ProtectedSession.Length>0,"Guarda tokens sin protección");}});
+            Check("Importación fallida conserva el contador existente",delegate{using(var test=new Scenario()){test.Engine.ImportSessionHtml(SavedOnline());string previous=test.Engine.Settings.ProtectedSession;test.Portal.TimeAnswer="errorop";bool rejected=false;try{test.Engine.ImportSessionHtml(SavedOnline());}catch(ArgumentException){rejected=true;}Assert(rejected&&test.Engine.Settings.ProtectedSession==previous&&test.Engine.Metrics.Remaining.HasValue&&test.Portal.Logins==0,"Una importación inválida pierde la sesión o autentica");}});
             Check("Sin VPN verifica Internet por la ruta física del sistema",delegate{
                 var lan=new NetworkLink{Name="Ethernet",Index=10,LocalIp=System.Net.IPAddress.Parse("192.0.2.10")};int calls=0;
                 var result=Connectivity.CheckCurrent((host,token)=>new[]{System.Net.IPAddress.Parse("198.51.100.1")},address=>lan,(uri,address,link,token)=>{calls++;Assert(link==lan&&uri.Scheme=="https"&&uri.Host=="www.gstatic.com","No sigue la salida directa HTTPS");return new PageResponse{Code=204,Body=""};},CancellationToken.None);

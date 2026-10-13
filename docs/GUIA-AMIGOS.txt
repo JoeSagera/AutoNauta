@@ -1,4 +1,4 @@
-AUTONAUTA 2.2.1 — BETA PARA WINDOWS X64
+AUTONAUTA 2.2.2 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -33,9 +33,12 @@ MAN mantiene la vigilancia, pero no inicia sesión automáticamente.
 Pausar detiene las comprobaciones; no cierra una sesión Nauta existente.
 
 TIEMPO Y VELOCIDADES
-El tiempo puede aparecer como No disponible si la sesión se inició antes
-de abrir AutoNauta. El programa necesita capturar una sesión nueva para
-consultar su contador. No cierra ni repite tu login para conseguirlo.
+Si la sesión se inició desde Chrome, pulsa Actualizar en la página de Nauta,
+guárdala como HTML y elige Vincular contador del navegador en el menú de
+clic derecho del LED. Selecciona ese HTML para consultar el tiempo actual.
+La página contiene datos privados de tu sesión: no la compartas.
+También obtiene el contador después de un login automático. Se actualiza
+cada minuto. No cierra ni repite tu login para conseguirlo.
 Las velocidades son el tráfico de tu computadora en bits por segundo;
 no son un test de velocidad ni incluyen los demás equipos del router.
 
@@ -46,9 +49,9 @@ usuario de Windows en %LOCALAPPDATA%\AutoNauta. No compartas esa carpeta.
 Puedes usar Eliminar cuenta en la aplicación para borrar los datos guardados.
 
 ALCANCE DE LA BETA
-Se comprobaron 65 pruebas locales, la interfaz en varias escalas y el LED
-con Mostrar escritorio. La reconexión durante una caída real de Nauta y
-el contador de una sesión nueva todavía requieren validación de campo.
+Se comprobaron 76 pruebas locales, la interfaz y la consulta del contador
+en una sesión real de Nauta Hogar. La reconexión completa durante una nueva
+caída real de Nauta todavía requiere validación de campo.
 No repara una línea ADSL sin señal. No arranca automáticamente con Windows.
 El programa no está afiliado a ETECSA ni a Proton.
 

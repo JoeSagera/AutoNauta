@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.2.1.0**, con VPN opcional y el diseño de Claude revisado por Codex. La cuenta existente se conserva. La revisión de la interfaz y recursos 2.2 está en `REVISION-DISENO-2.2.md`.
+Entrega actual: **2.2.2.0**, con reconexión sin depender del popup y contador de Nauta Hogar corregido. La cuenta existente se conserva. La revisión de la interfaz y recursos 2.2 está en `REVISION-DISENO-2.2.md`.
 
 ## Empezar
 
@@ -35,7 +35,9 @@ Desactivarlo cancela los intentos pendientes y conserva la vigilancia, velocidad
 
 Cuando AutoNauta inicia una sesión nueva, captura los datos del contador devuelto por Nauta y consulta el tiempo restante cada minuto. Los guarda cifrados para tu usuario de Windows para poder consultarlos al volver a abrir la aplicación.
 
-Si te conectaste antes con Chrome u otro programa, AutoNauta puede no tener el identificador de esa sesión: muestra **No disponible** (en la 2.1.1, **—h —m**) hasta obtener un contador válido al iniciar una sesión nueva. No repite el login ni cierra tu sesión para conseguirlo. El portal de información devuelve crédito en CUP e historial; no convierte ese crédito a horas con una tarifa supuesta, ni confunde el historial con tiempo restante.
+Si te conectaste antes con Chrome, puedes vincular ese contador: en la página conectada pulsa **Actualizar**, guárdala con **Guardar como** en formato HTML y elige **Vincular contador del navegador…** en el menú de clic derecho del LED. Selecciona ese HTML. AutoNauta verifica que corresponde a tu cuenta y consulta el tiempo antes de guardarlo. Esa página contiene datos privados de tu sesión: no la compartas.
+
+También puede capturar el contador con el siguiente login automático. No repite el login ni cierra tu sesión para conseguirlo. El portal de información devuelve crédito en CUP e historial; no convierte ese crédito a horas con una tarifa supuesta, ni confunde el historial con tiempo restante.
 
 El tooltip muestra la hora de la última consulta. Si la actualización falla, conserva el último dato e indica el problema; no es una lectura nueva. Al cambiar de cuenta o terminar la sesión anterior, retira el contador anterior.
 
@@ -51,7 +53,7 @@ La configuración, contraseña cifrada, contador de sesión cifrado, posición y
 
 HTTPS valida nombre, fechas y confianza del certificado; no exige una consulta de revocación en línea antes de tener Internet. Se mantienen los límites de reintentos y la espera ante respuestas ambiguas. No repara una línea ADSL caída ni se añadió inicio automático con Windows.
 
-La recuperación real y la consulta del contador de una sesión nueva siguen pendientes de observar. Consulta `VALIDACION.md`. `barra-ejemplo.png` es una vista del diseño con cifras ficticias, no los datos de tu cuenta.
+El contador de una sesión real de Nauta Hogar ya devolvió una duración válida con la consulta corregida. La recuperación durante la siguiente caída real sigue pendiente de observar. Consulta `VALIDACION.md`. `barra-ejemplo.png` es una vista del diseño con cifras ficticias, no los datos de tu cuenta.
 
 ## Versión 2.1 y ejecución prolongada
 

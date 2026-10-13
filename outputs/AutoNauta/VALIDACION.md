@@ -79,3 +79,13 @@ El usuario autorizó publicar el repositorio completo y pidió retirar la exigen
 El ZIP preparado incluye solo ejecutable, guía y sumas SHA-256. Se extrajo a una carpeta nueva, se verificó que el ejecutable coincide por hash y se ejecutó la prueba visual del programa extraído: salida 0 y 17 capturas. La recuperación durante una caída real y el contador de una sesión nueva siguen pendientes de observación.
 
 Antes del ajuste final de textos, una medición de 60,57 segundos de la 2.2.1 minimizada registró 0,184 % de CPU total y picos de 57,80 MiB residentes y 30,10 MiB privados. Es una muestra corta del proceso real, no una comparación controlada con las anteriores ni una garantía de consumo fijo. El JSON se conserva en `evidencias-rendimiento-2.2.1/`.
+
+## Corrección 2.2.2 — reconexión y contador Hogar
+
+El usuario informó una caída que tuvo que resolver mediante login manual. Se corrigió la condición que impedía consultar Nauta sin redirección HTTP, el reconocimiento del botón de cierre en la página conectada y el contexto incompleto de la consulta de tiempo. El estado temporal «usuario ya conectado» conserva AUTO.
+
+76 pruebas correctas, incluyendo el flujo completo controlado de caída sin popup, login, Internet y contador; el caso de fallo VPN con Internet físico evita el login. `--ui-smoke` terminó con salida 0 y 17 capturas. El cliente y parser corregidos reprodujeron los diez campos de la página real y obtuvieron HTTP 200 con una duración válida de Nauta Hogar.
+
+La sesión manual existente se vinculó y el usuario confirmó que el tiempo aparece en el LED. No se cerró ni repitió su login. Para otras sesiones del navegador se añadió «Vincular contador del navegador…» al menú del LED. No se incluyeron las páginas personales ni sus tokens en la entrega.
+
+La recuperación completa durante la siguiente caída real sigue pendiente. Detalles y límites: `../../docs/RECONEXION-2.2.2.md`.

@@ -101,7 +101,13 @@ namespace NautaReconnect {
             throw new IOException("No se pudo resolver el portal mediante el router.");
         }
     }
-    public sealed class PortalClient {
+    internal interface IPortalClient {
+        PageResponse Get(CancellationToken token);
+        PageResponse Login(PortalPage page,string user,string password,CancellationToken token);
+        PageResponse QueryAccount(PortalPage page,string user,string password,CancellationToken token);
+        PageResponse GetLeftTime(NautaSession session,CancellationToken token);
+    }
+    public sealed class PortalClient : IPortalClient {
         readonly CookieContainer cookies=new CookieContainer();
         readonly NetworkLink router;
         readonly IPAddress portal;
@@ -122,7 +128,7 @@ namespace NautaReconnect {
         }
         public PageResponse GetLeftTime(NautaSession session,CancellationToken token){
             if(session==null||!session.ValidFor(session.Username))throw new InvalidOperationException("No hay un contador de sesión disponible.");
-            var fields=new System.Collections.Generic.Dictionary<string,string>();fields["username"]=session.Username;fields["CSRFHW"]=session.Csrf;fields["ATTRIBUTE_UUID"]=session.Uuid;fields["op"]="getLeftTime";
+            var fields=session.QueryFields();
             token.ThrowIfCancellationRequested();return Send(new Uri(Home,"/EtecsaQueryServlet"),PortalParser.Encode(fields),token,true);
         }
         PageResponse Send(Uri uri,string body,CancellationToken token,bool informationOnly=false) {
@@ -153,6 +159,19 @@ namespace NautaReconnect {
         public NetworkLink Interface;
     }
     public static class Connectivity {
+        static readonly object probeGate=new object();
+        static readonly System.Collections.Generic.Dictionary<string,string> probeAddresses=new System.Collections.Generic.Dictionary<string,string>();
+        static void Remember(Uri uri,IPAddress address){lock(probeGate)probeAddresses[uri.Host]=address.ToString();}
+        public static bool CheckRouter(NetworkLink router,CancellationToken token){
+            // DNS through the router can fail during an expired Nauta session.
+            // The last probe address is only a fallback; HTTPS still validates its host.
+            using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(token)){
+                deadline.CancelAfter(12000);
+                try{return CheckCurrent(delegate(string host,CancellationToken cancel){string cached;lock(probeGate)probeAddresses.TryGetValue(host,out cached);return new[]{Networks.RouterAddress(router,host,cached??"",cancel)};},address=>router,
+                    delegate(Uri uri,IPAddress address,NetworkLink link,CancellationToken cancel){string location;return PinnedHttp.Send(uri,address,link,null,new CookieContainer(),cancel,out location,4000);},deadline.Token).Connected;}
+                catch(OperationCanceledException){token.ThrowIfCancellationRequested();return false;}
+            }
+        }
         public static ConnectionCheck CheckCurrent(CancellationToken token,System.Collections.Generic.List<string> trace=null){
             return CheckCurrent(Networks.Resolve,Networks.InternetRoute,delegate(Uri uri,IPAddress address,NetworkLink link,CancellationToken cancellation){
                 string redirect;return PinnedHttp.Send(uri,address,link,null,new CookieContainer(),cancellation,out redirect,5000);
@@ -168,6 +187,7 @@ namespace NautaReconnect {
                     foreach(var address in resolve(uri.Host,token).Where(a=>a.AddressFamily==AddressFamily.InterNetwork).Take(2)){
                         try{
                             token.ThrowIfCancellationRequested();var link=route(address);if(link==null)continue;
+                            Remember(uri,address);
                             var response=send(uri,address,link,token);token.ThrowIfCancellationRequested();
                             if(IsExpected(i,response.Code,response.Body)){if(trace!=null)trace.Add("Prueba "+i+": correcta");return new ConnectionCheck{Connected=true,Interface=link};}
                             if(trace!=null)trace.Add("Prueba "+i+": respuesta no confirmada");
