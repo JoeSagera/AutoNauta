@@ -1,8 +1,12 @@
 # AutoNauta
 
+Entrega actual: **2.2.0.0**, con el diseño de Claude revisado por Codex. La cuenta existente se conserva. La revisión funcional y de recursos está en `REVISION-DISENO-2.2.md`.
+
 ## Empezar
 
-Abre **AutoNauta.exe** y pulsa **Iniciar**. La cuenta y posición de la versión anterior se conservan; no necesita administrador ni modificar WireGuard. Para cambiar la cuenta, escribe el usuario completo de navegación y su contraseña y pulsa **Guardar cuenta**. Dejar la contraseña vacía conserva la existente.
+Abre **AutoNauta.exe** y pulsa **Iniciar** en la fila **Vigilancia**. La cuenta y posición de la versión anterior se conservan; no necesita administrador ni modificar WireGuard.
+
+Con una cuenta guardada, la sección **Cuenta Nauta** muestra un resumen parcial del usuario. Para cambiarla, pulsa **Cambiar cuenta**, escribe el usuario completo de navegación y su contraseña, y pulsa **Guardar cuenta** o Intro. Dejar la contraseña vacía conserva la existente. **Cancelar** o Esc descarta lo escrito. **Eliminar cuenta** pide confirmación.
 
 La X de la ventana y **Minimizar** dejan AutoNauta funcionando. **Salir** termina el programa. La computadora debe estar encendida y sin suspensión.
 
@@ -21,7 +25,7 @@ Arrastra el LED o el fondo de la barra para moverlo. Doble clic abre la ventana 
 
 ## Login automático independiente
 
-**AUTO** indica login automático activado; **MAN** indica desactivado. Pulsa ese botón en la barra, el botón **Login automático: ON/OFF** de la ventana o la opción del menú para cambiarlo.
+**AUTO** indica login automático activado; **MAN** indica desactivado. Pulsa ese botón en la barra, el interruptor **Login automático** de la ventana o la opción del menú para cambiarlo. La descripción de esa fila también indica AUTO o MAN.
 
 Desactivarlo cancela los intentos pendientes y conserva la vigilancia, velocidades y consultas de tiempo. No inicia nuevas sesiones de navegación. Activarlo permite reconectar cuando se confirma que Nauta requiere acceso. El modo se guarda para la siguiente apertura.
 
@@ -31,7 +35,7 @@ Desactivarlo cancela los intentos pendientes y conserva la vigilancia, velocidad
 
 Cuando AutoNauta inicia una sesión nueva, captura los datos del contador devuelto por Nauta y consulta el tiempo restante cada minuto. Los guarda cifrados para tu usuario de Windows para poder consultarlos al volver a abrir la aplicación.
 
-Si te conectaste antes con Chrome u otro programa, AutoNauta puede no tener el identificador de esa sesión: muestra **—h —m** hasta obtener un contador válido al iniciar una sesión nueva. No repite el login ni cierra tu sesión para conseguirlo. El portal de información devuelve crédito en CUP e historial; no convierte ese crédito a horas con una tarifa supuesta, ni confunde el historial con tiempo restante.
+Si te conectaste antes con Chrome u otro programa, AutoNauta puede no tener el identificador de esa sesión: muestra **No disponible** (en la 2.1.1, **—h —m**) hasta obtener un contador válido al iniciar una sesión nueva. No repite el login ni cierra tu sesión para conseguirlo. El portal de información devuelve crédito en CUP e historial; no convierte ese crédito a horas con una tarifa supuesta, ni confunde el historial con tiempo restante.
 
 El tooltip muestra la hora de la última consulta. Si la actualización falla, conserva el último dato e indica el problema; no es una lectura nueva. Al cambiar de cuenta o terminar la sesión anterior, retira el contador anterior.
 
@@ -60,3 +64,9 @@ Los registros conservan un archivo activo y cuatro archivos rotados, alrededor d
 Para abrir directamente minimizado puede ejecutarse `AutoNauta.exe --resume --background`. El doble clic normal mantiene la ventana inicial. No se añadió arranque automático con Windows.
 
 Consulta `REVISION-RENDIMIENTO.md` para los cambios, medidas y límites de la prueba.
+
+## Versión 2.2 — nueva interfaz
+
+La ventana se organiza en estado, funcionamiento (vigilancia y login automático), cuenta y actividad reciente. Usa un tema oscuro, texto nítido con cualquier escala de Windows y una cápsula del LED más pequeña con bordes suavizados. Las funciones, el menú junto al reloj (**Recuperar LED** incluido), la posición guardada y las preferencias se mantienen. Detalles y capturas: `DISENO.md` y `diseno-2.2/`.
+
+Mientras `AutoNauta.exe` siga mostrando la versión 2.1.1 en sus propiedades, la interfaz nueva no está instalada: cierra AutoNauta con **Salir** y ejecuta `Compilar.ps1`.

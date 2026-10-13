@@ -15,6 +15,7 @@ namespace NautaReconnect {
                 if(args.Length>0&&args[0]=="--diagnostic")return Diagnostic(args.Length>1?args[1]:Path.Combine(DataPath,"diagnostico.json"));
                 if(args.Length>0&&args[0]=="--self-test")return CoreTests.Run();
                 bool preview=args.Length>0&&(args[0]=="--preview"||args[0]=="--ui-smoke");
+                Native.SetProcessDPIAware();
                 string data=preview?Path.Combine(Path.GetTempPath(),"NautaUiPreview-"+Guid.NewGuid().ToString("N")):DataPath;
                 using(var mutex=new Mutex(false,"Local\\ReconectorNauta-"+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){
                     bool acquired=preview;try{if(!preview)acquired=mutex.WaitOne(5000);}catch(AbandonedMutexException){acquired=true;}

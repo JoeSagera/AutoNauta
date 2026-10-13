@@ -63,3 +63,9 @@ El menú junto al reloj incluye **Recuperar LED**, que restaura solo el indicado
 Verificación: 60 pruebas correctas y prueba visual ampliada correcta, incluyendo 20 minimizaciones consecutivas, estilos nativos, recuperación sin cambiar el foco y barra fijada. El usuario confirmó en su Windows que el LED sigue visible al pulsar el botón real «Mostrar escritorio» después de instalar la versión 2.1.1.
 
 Referencia del comportamiento de Windows: [Microsoft: WS_MINIMIZEBOX y Mostrar escritorio](https://devblogs.microsoft.com/oldnewthing/20241021-00/?p=110393).
+
+## Rediseño 2.2 — interfaz
+
+Ventana principal en cuatro bloques (estado, funcionamiento, cuenta y actividad) con tema grafito y un único acento azul. Indicador con transparencia por píxel (cápsula más pequeña y con bordes suavizados) y proceso de interfaz *DPI-aware*. La posición se sigue guardando en unidades de 96 DPI, como en las versiones anteriores. No se modificaron la conexión, la autenticación, la VPN, el cifrado ni las métricas.
+
+Fuentes nuevos: `src/UiTheme.cs` y `src/UiMain.cs`. Decisiones, capturas y pendientes: `outputs/AutoNauta/DISENO.md`, `outputs/AutoNauta/diseno-2.2/` y la sección 2.2 de `VALIDACION.md`. La entrega `AutoNauta.exe` ya está compilada como **2.2.0.0**. Codex revisó el diseño de Claude, ejecutó las 60 pruebas y la revisión visual a 100 %, 150 % y 200 %, y comparó recursos con la 2.1.1. Resultados: `outputs/AutoNauta/REVISION-DISENO-2.2.md`.

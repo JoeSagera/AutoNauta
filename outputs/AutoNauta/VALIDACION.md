@@ -39,3 +39,33 @@ La imagen `barra-ejemplo.png` contiene datos de prueba. Las evidencias anteriore
 - Se reinició la aplicación minimizada con la configuración existente. No se cambiaron las conexiones Nauta ni WireGuard. La versión anterior y los fuentes cambiados permanecen en `work/backup-showdesktop`, solo local.
 
 La comprobación directa de Win+D no se ejecutó; la confirmación manual corresponde al botón de la barra de tareas. Las mediciones de rendimiento anteriores corresponden a 2.1; esta corrección responde a eventos y no añade sondeos ni temporizadores.
+
+## Rediseño 2.2 — 13 de octubre de 2026
+
+Validación inicial de Claude sobre los fuentes compilados en una carpeta temporal. En esa fase **no se reemplazó `AutoNauta.exe`**, que seguía abierto (2.1.1). No se tocaron WireGuard ni la sesión Nauta. La revisión e integración posteriores de Codex están documentadas en `REVISION-DISENO-2.2.md`; la entrega actual ya es 2.2.0.0.
+
+### Comprobado
+
+- **Pruebas locales:** 60 correctas, 0 fallidas, compiladas con `src/` completo.
+- **`--ui-smoke` a la escala real (150 %):** salida 0 en cinco ejecuciones seguidas y 17 capturas. Se mantienen todas las comprobaciones de la 2.1.1: estilos nativos, `SC_MINIMIZE` ignorado, 20 minimizaciones forzadas, **Recuperar LED** sin cambiar el foco, barra fijada que conserva su tamaño, ausencia de actualizaciones con solo el LED, ausencia de redibujados con cifras sin cambio y reutilización de iconos. Comprobaciones nuevas:
+  - ventana *layered* y límites de la ventana iguales a la superficie dibujada, también después de restaurar;
+  - reposo en cápsula ovalada, con esquinas transparentes y centro opaco;
+  - un estado repetido no redibuja el LED;
+  - en la esquina derecha la barra se abre hacia la izquierda; en la izquierda, hacia la derecha. En ambos casos queda dentro de la pantalla y el LED no se mueve;
+  - tras una ronda de calentamiento, 300 ciclos de expansión, cifras y estados no aumentan los objetos GDI ni de usuario;
+  - el resumen de cuenta no muestra el usuario completo; **Cambiar cuenta**/**Cancelar** abren y cierran el formulario y descartan la contraseña;
+  - en una ventana de 420×420 todos los controles siguen accesibles con desplazamiento.
+- **`--ui-smoke` con `AUTONAUTA_UI_SCALE`=1, 1,25 y 2:** salida 0. Se revisaron las capturas a 100 % y 200 %.
+- **Mouse real sobre `--preview`:** al llevar el cursor al LED, la cápsula pasó de 69×45 a 639×45 px abriéndose hacia la izquierda, con el borde del LED fijo y sin cambiar la ventana activa. Al retirar el cursor volvió a 69×45. Las capturas de esta prueba incluían el escritorio del usuario y no se guardaron en el proyecto.
+- `work/PerformanceHarness.cs` compila contra la nueva interfaz. No se ejecutó porque inicia el motor con sondas reales.
+- Se revisaron las capturas de ventana (primer uso, cuenta guardada, error, tamaño mínimo, 100 %), menú e indicador sobre fondos claro, azul y negro. Se corrigieron texto truncado en la actividad, descripciones cortadas, titular compitiendo con un botón y espacio de «No disponible».
+
+Las primeras repeticiones fallaron al reutilizar una carpeta de capturas recién borrada (error genérico de GDI+ al guardar). Con una carpeta nueva por ejecución, todas pasaron. El programa normal no escribe capturas.
+
+### Pendiente de prueba manual
+
+- Compilar con `Compilar.ps1` tras cerrar la 2.1.1 y comprobar que el LED aparece en la posición guardada.
+- **Mostrar escritorio** real y Win+D con la ventana *layered*: las pruebas reproducen la minimización forzada, no el botón del shell.
+- Arrastrar el LED con el mouse físico a las cuatro esquinas y entre monitores.
+- Uso prolongado con la red real y comparación de recursos con `work/Measure-Process.ps1`.
+- Monitores con escalas distintas y lector de pantalla.

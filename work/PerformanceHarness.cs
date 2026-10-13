@@ -12,6 +12,9 @@ public static class PerformanceHarness {
     [DllImport("user32.dll")] static extern uint GetGuiResources(IntPtr process,uint flag);
     [STAThread]public static int Main(string[] args){
         ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;
+        // Match production DPI awareness where the UI version supports it.
+        var native=typeof(UiContext).Assembly.GetType("NautaReconnect.Native");
+        if(native!=null){var aware=native.GetMethod("SetProcessDPIAware",BindingFlags.Static|BindingFlags.NonPublic|BindingFlags.Public);if(aware!=null)aware.Invoke(null,null);}
         string mode=args[0],report=args[1];int duration=Int32.Parse(args[2]);
         string data=Path.Combine(Path.GetTempPath(),"AutoNautaPerf-"+Guid.NewGuid().ToString("N"));var store=new SettingsStore(data);store.Save(new AppSettings{AutoLoginEnabled=false,IndicatorX=20,IndicatorY=mode=="collapsed"?200:260});
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);var engine=new Engine(store,false);var context=new UiContext(engine,false);
