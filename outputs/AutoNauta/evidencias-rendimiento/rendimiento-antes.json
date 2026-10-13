@@ -1,0 +1,331 @@
+{
+  "durationSeconds": 60.4737719,
+  "logicalProcessors": 16,
+  "cpuSeconds": 0.296875,
+  "cpuPercentOneCore": 0.49089704090405484,
+  "cpuPercentWholeMachine": 0.03068057879212884,
+  "first": {
+    "second": 0.0333245,
+    "cpuSeconds": 10.4375,
+    "workingMiB": 66.0234375,
+    "privateMiB": 38.7421875,
+    "handles": 519,
+    "threads": 17,
+    "gdi": 58,
+    "userObjects": 67
+  },
+  "last": {
+    "second": 58.4603286,
+    "cpuSeconds": 10.71875,
+    "workingMiB": 65.9375,
+    "privateMiB": 38.77734375,
+    "handles": 511,
+    "threads": 18,
+    "gdi": 58,
+    "userObjects": 67
+  },
+  "peakWorkingMiB": 66.0390625,
+  "peakPrivateMiB": 38.77734375,
+  "samples": [
+    {
+      "second": 0.0333245,
+      "cpuSeconds": 10.4375,
+      "workingMiB": 66.0234375,
+      "privateMiB": 38.7421875,
+      "handles": 519,
+      "threads": 17,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 2.0729785,
+      "cpuSeconds": 10.453125,
+      "workingMiB": 66.0234375,
+      "privateMiB": 38.7421875,
+      "handles": 519,
+      "threads": 17,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 4.094237,
+      "cpuSeconds": 10.453125,
+      "workingMiB": 66.0234375,
+      "privateMiB": 38.7421875,
+      "handles": 519,
+      "threads": 17,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 6.1161799,
+      "cpuSeconds": 10.453125,
+      "workingMiB": 66.0390625,
+      "privateMiB": 38.77734375,
+      "handles": 518,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 8.1271451,
+      "cpuSeconds": 10.46875,
+      "workingMiB": 66.0390625,
+      "privateMiB": 38.77734375,
+      "handles": 518,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 10.1481565,
+      "cpuSeconds": 10.5,
+      "workingMiB": 66.0390625,
+      "privateMiB": 38.77734375,
+      "handles": 518,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 12.1606195,
+      "cpuSeconds": 10.515625,
+      "workingMiB": 66.0234375,
+      "privateMiB": 38.734375,
+      "handles": 513,
+      "threads": 17,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 14.1729924,
+      "cpuSeconds": 10.53125,
+      "workingMiB": 66.02734375,
+      "privateMiB": 38.77734375,
+      "handles": 523,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 16.1820563,
+      "cpuSeconds": 10.546875,
+      "workingMiB": 65.93359375,
+      "privateMiB": 38.77734375,
+      "handles": 520,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 18.1922212,
+      "cpuSeconds": 10.5625,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.77734375,
+      "handles": 520,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 20.2078816,
+      "cpuSeconds": 10.578125,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.77734375,
+      "handles": 520,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 22.2177782,
+      "cpuSeconds": 10.609375,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.77734375,
+      "handles": 520,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 24.2275689,
+      "cpuSeconds": 10.609375,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.77734375,
+      "handles": 520,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 26.2433159,
+      "cpuSeconds": 10.609375,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.77734375,
+      "handles": 520,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 28.2537116,
+      "cpuSeconds": 10.609375,
+      "workingMiB": 65.90625,
+      "privateMiB": 38.734375,
+      "handles": 515,
+      "threads": 17,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 30.2638327,
+      "cpuSeconds": 10.609375,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.77734375,
+      "handles": 526,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 32.285387,
+      "cpuSeconds": 10.625,
+      "workingMiB": 65.93359375,
+      "privateMiB": 38.77734375,
+      "handles": 527,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 34.2952178,
+      "cpuSeconds": 10.625,
+      "workingMiB": 65.93359375,
+      "privateMiB": 38.77734375,
+      "handles": 527,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 36.3049851,
+      "cpuSeconds": 10.640625,
+      "workingMiB": 65.93359375,
+      "privateMiB": 38.77734375,
+      "handles": 529,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 38.3151889,
+      "cpuSeconds": 10.65625,
+      "workingMiB": 65.93359375,
+      "privateMiB": 38.77734375,
+      "handles": 529,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 40.3278656,
+      "cpuSeconds": 10.65625,
+      "workingMiB": 65.93359375,
+      "privateMiB": 38.77734375,
+      "handles": 529,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 42.3472313,
+      "cpuSeconds": 10.671875,
+      "workingMiB": 65.94140625,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 44.3610668,
+      "cpuSeconds": 10.671875,
+      "workingMiB": 65.94140625,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 46.3734478,
+      "cpuSeconds": 10.671875,
+      "workingMiB": 65.921875,
+      "privateMiB": 38.73046875,
+      "handles": 504,
+      "threads": 17,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 48.3947197,
+      "cpuSeconds": 10.703125,
+      "workingMiB": 65.9375,
+      "privateMiB": 38.77734375,
+      "handles": 513,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 50.4054567,
+      "cpuSeconds": 10.703125,
+      "workingMiB": 65.9375,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 52.4143011,
+      "cpuSeconds": 10.71875,
+      "workingMiB": 65.9375,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 54.4243566,
+      "cpuSeconds": 10.71875,
+      "workingMiB": 65.9375,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 56.445701,
+      "cpuSeconds": 10.71875,
+      "workingMiB": 65.9375,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    },
+    {
+      "second": 58.4603286,
+      "cpuSeconds": 10.71875,
+      "workingMiB": 65.9375,
+      "privateMiB": 38.77734375,
+      "handles": 511,
+      "threads": 18,
+      "gdi": 58,
+      "userObjects": 67
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+# Datos personales y secretos: nunca versionarlos.
+config.json
+config.json.*
+.env
+.env.*
+!.env.example
+credentials*.json
+secrets*.json
+*.conf
+*.key
+*.pem
+*.pfx
+*.p12
+*.log
+
+# Trabajo temporal y copias anteriores permanecen en el equipo.
+work/*
+!work/Measure-Process.ps1
+!work/PerformanceHarness.cs
+**/bin/
+**/obj/
+.vs/
+*.tmp
+*.user
+*.suo
+
+# Diagnósticos específicos de la red local.
+**/diagnostico*.json
+
+# El ejecutable pequeño de la entrega se conserva junto con su código.
+*.exe
+!outputs/AutoNauta/AutoNauta.exe
