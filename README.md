@@ -53,3 +53,13 @@ Repositorio privado: [JoeSagera/AutoNauta](https://github.com/JoeSagera/AutoNaut
 Git conserva las fuentes, las instrucciones de compilación, el ejecutable de la entrega, documentación, imágenes de ejemplo y mediciones de recursos. Las copias `work/backup-v1` y `work/backup-v2`, pruebas temporales y diagnósticos de red permanecen solo en el equipo original; no forman parte de un clon del repositorio. Los dos instrumentos de medición en `work/` sí se versionan.
 
 Las credenciales y sesiones cifradas están en `%LOCALAPPDATA%/AutoNauta`, fuera del proyecto. `.gitignore` excluye configuración personal, perfiles VPN, claves, registros y archivos temporales. Nunca añadas esos datos mediante `git add -f`.
+
+## Corrección 2.1.1 — Mostrar escritorio
+
+El LED podía minimizarse con el botón «Mostrar escritorio» y desaparecer de la pantalla. La ventana flotante ya no tiene estilos de minimizar/maximizar, ignora la orden de minimizar y se restaura, sin tomar el foco, si otra llamada la minimiza. La recuperación funciona por eventos; no añade temporizadores ni sondeos continuos.
+
+El menú junto al reloj incluye **Recuperar LED**, que restaura solo el indicador. **Mostrar AutoNauta** también recupera un indicador oculto. Se conservan posición, fijación y estado de login.
+
+Verificación: 60 pruebas correctas y prueba visual ampliada correcta, incluyendo 20 minimizaciones consecutivas, estilos nativos, recuperación sin cambiar el foco y barra fijada. El usuario confirmó en su Windows que el LED sigue visible al pulsar el botón real «Mostrar escritorio» después de instalar la versión 2.1.1.
+
+Referencia del comportamiento de Windows: [Microsoft: WS_MINIMIZEBOX y Mostrar escritorio](https://devblogs.microsoft.com/oldnewthing/20241021-00/?p=110393).

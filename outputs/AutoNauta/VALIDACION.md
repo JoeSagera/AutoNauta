@@ -29,3 +29,13 @@ La imagen `barra-ejemplo.png` contiene datos de prueba. Las evidencias anteriore
 ## Actualización 2.1
 
 60 pruebas correctas y prueba visual ampliada correcta. Se compararon ambas versiones con LED y barra expandida, y se realizó una prueba de estabilidad de cinco minutos. Las medidas y el alcance de esta revisión están en `REVISION-RENDIMIENTO.md`; la versión 2 y su código anterior se conservaron en `work/backup-v2`.
+
+## Actualización 2.1.1 — 13 de octubre de 2026
+
+- 60 pruebas locales correctas, cero fallos. Prueba visual ampliada: salida 0 y diez capturas.
+- Comprobados los estilos nativos del LED sin minimizar/maximizar, la orden SC_MINIMIZE ignorada y la restauración ante una minimización forzada. Se repite esta última 20 veces manteniendo posición y visibilidad.
+- «Recuperar LED» restaura una ventana oculta sin abrir la principal ni cambiar la ventana con foco. «Mostrar AutoNauta» también restaura el indicador. Se comprueba que una barra fijada conserva su fijación y tamaño después de minimizarse.
+- **Confirmación manual del usuario:** después de instalar la corrección, pulsó el botón real «Mostrar escritorio» y respondió «El LED sigue visible».
+- Se reinició la aplicación minimizada con la configuración existente. No se cambiaron las conexiones Nauta ni WireGuard. La versión anterior y los fuentes cambiados permanecen en `work/backup-showdesktop`, solo local.
+
+La comprobación directa de Win+D no se ejecutó; la confirmación manual corresponde al botón de la barra de tareas. Las mediciones de rendimiento anteriores corresponden a 2.1; esta corrección responde a eventos y no añade sondeos ni temporizadores.

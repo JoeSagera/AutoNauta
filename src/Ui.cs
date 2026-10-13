@@ -17,7 +17,7 @@ namespace NautaReconnect
         readonly IndicatorForm indicator;
         readonly NotifyIcon tray;
         readonly ContextMenuStrip menu;
-        readonly ToolStripMenuItem toggleMenu, checkMenu,automaticMenu,pinnedMenu;
+        readonly ToolStripMenuItem toggleMenu, checkMenu,automaticMenu,pinnedMenu,restoreIndicatorMenu;
         readonly System.Windows.Forms.Timer positionTimer;
         readonly object commandGate = new object();
         readonly TextBox username, password, detail;
@@ -75,6 +75,7 @@ namespace NautaReconnect
             Label footer = LabelFor("LED flotante · pasa el mouse para ver tiempo y velocidades · arrastra para mover.",8F,Palette.Muted); footer.Dock = DockStyle.Fill; footer.TextAlign = ContentAlignment.MiddleLeft; layout.Controls.Add(footer,0,7);
             menu = new ContextMenuStrip { BackColor = Palette.Surface, ForeColor = Palette.Text };
             var showMenu = new ToolStripMenuItem("Mostrar AutoNauta"); showMenu.Click += delegate { ShowMain(true); }; menu.Items.Add(showMenu);
+            restoreIndicatorMenu = new ToolStripMenuItem("Recuperar LED"); restoreIndicatorMenu.Click += delegate { if(!exiting) indicator.EnsureVisible(); }; menu.Items.Add(restoreIndicatorMenu);
             toggleMenu = new ToolStripMenuItem("Iniciar"); toggleMenu.Click += delegate { ToggleRunning(); }; menu.Items.Add(toggleMenu);
             checkMenu = new ToolStripMenuItem("Comprobar ahora"); checkMenu.Click += delegate { RunCommand(delegate { controller.CheckNow(); },null); }; menu.Items.Add(checkMenu);
             automaticMenu=new ToolStripMenuItem("Login automático");automaticMenu.Click+=delegate{ToggleAutomatic();};menu.Items.Add(automaticMenu);
@@ -160,7 +161,7 @@ namespace NautaReconnect
             });
         }
         void HideMain() { main.Hide(); }
-        void ShowMain(bool activate) { if(exiting) return; main.Show(); if(main.WindowState == FormWindowState.Minimized) main.WindowState = FormWindowState.Normal;ApplyMetrics(controller.Metrics); if(activate) main.Activate(); }
+        void ShowMain(bool activate) { if(exiting) return; indicator.EnsureVisible(); main.Show(); if(main.WindowState == FormWindowState.Minimized) main.WindowState = FormWindowState.Normal;ApplyMetrics(controller.Metrics); if(activate) main.Activate(); }
         public void MinimizeMain(){HideMain();}
         void DisplaySettingsChanged(object sender,EventArgs e) { Post(delegate { if(!exiting) PositionChanged(); }); }
         void PositionChanged() { indicator.MoveAnchor(ClampPosition(indicator.AnchorLocation,indicator.CollapsedSize)); positionTimer.Stop(); positionTimer.Start(); }
@@ -196,6 +197,19 @@ namespace NautaReconnect
             Assert(main.Visible && indicator.Visible,"Principal e indicador deben ser visibles inicialmente."); Assert(password.Text.Length == 0 && password.UseSystemPasswordChar,"La contraseña debe estar vacía y enmascarada."); Assert(indicator.TopMost,"Indicador topmost.");
             main.WindowState = FormWindowState.Minimized; Application.DoEvents(); Assert(!main.Visible && indicator.Visible,"Minimizar oculta solo principal.");
             ShowMain(false); Application.DoEvents(); Assert(main.Visible && main.WindowState == FormWindowState.Normal,"Restaurar principal. Visible=" + main.Visible + ", Estado=" + main.WindowState);
+            long style=GetWindowLongPtr(indicator.Handle,-16).ToInt64(),extended=GetWindowLongPtr(indicator.Handle,-20).ToInt64();
+            Assert((style&0x00030000)==0&&(extended&0x08000080)==0x08000080,"El LED debe ser una herramienta no activable y sin estilos de minimizar/maximizar.");
+            Point restoreAnchor=indicator.AnchorLocation;SendMessage(indicator.Handle,0x0112,new IntPtr(0xF020),IntPtr.Zero);Application.DoEvents();
+            Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Visible,"El LED debe ignorar la orden de minimizar del shell.");
+            HideMain();indicator.WindowState=FormWindowState.Minimized;Application.DoEvents();
+            Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Visible&&!main.Visible&&indicator.AnchorLocation==restoreAnchor,"Minimización externa recupera solo el LED y conserva su posición.");
+            for(int i=0;i<20;i++){indicator.WindowState=FormWindowState.Minimized;Application.DoEvents();Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Visible&&indicator.AnchorLocation==restoreAnchor,"La recuperación debe seguir funcionando después de minimizar repetidamente.");}
+            indicator.Hide();indicator.TopMost=false;IntPtr beforeRecovery=GetForegroundWindow();restoreIndicatorMenu.PerformClick();Application.DoEvents();
+            Assert(indicator.Visible&&indicator.TopMost&&!main.Visible&&GetForegroundWindow()==beforeRecovery,"Recuperar LED restaura el indicador sin abrir la ventana ni tomar el foco.");
+            indicator.SetPinned(true);indicator.SetExpanded(true,true);indicator.WindowState=FormWindowState.Minimized;Application.DoEvents();
+            Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Pinned&&indicator.Expanded&&indicator.Width==468,"Recuperar conserva la barra fijada y su tamaño.");
+            indicator.SetPinned(false);indicator.SetExpanded(false,true);indicator.Hide();ShowMain(false);Application.DoEvents();
+            Assert(main.Visible&&indicator.Visible&&indicator.WindowState==FormWindowState.Normal,"Mostrar AutoNauta también recupera un LED oculto.");
             HideMain();indicator.SetExpanded(false,true);Application.DoEvents();
             for(int i=0;i<1000;i++)MetricsChanged(this,EventArgs.Empty);
             Assert(metricsPending==0,"El modo LED no debe encolar actualizaciones de controles ocultos.");
@@ -234,6 +248,9 @@ namespace NautaReconnect
             }
         }
         [DllImport("user32.dll",SetLastError = true)] static extern bool DestroyIcon(IntPtr icon);
+        [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] static extern IntPtr GetWindowLongPtr(IntPtr window,int index);
+        [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr window,int message,IntPtr wParam,IntPtr lParam);
+        [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     }
     internal sealed class DarkButton : Button {
         protected override void OnPaint(PaintEventArgs e) {
@@ -253,7 +270,7 @@ namespace NautaReconnect
         readonly System.Windows.Forms.Timer animation=new System.Windows.Forms.Timer{Interval=15};
         readonly System.Windows.Forms.Timer leaveTimer=new System.Windows.Forms.Timer{Interval=180};
         Point anchor,dragCursor,dragLocation;
-        bool dragging,moved,expanded,pinned,expandLeft,automatic=true;
+        bool dragging,moved,expanded,pinned,expandLeft,automatic=true,restorePending;
         int targetWidth=CompactWidth,pressedControl;
         string information="";
         Telemetry metrics=new Telemetry();
@@ -269,9 +286,9 @@ namespace NautaReconnect
         internal Point LedScreenPoint{get{return new Point(Location.X+(expandLeft?Width-CompactWidth/2:CompactWidth/2),Location.Y+BarHeight/2);}}
         internal void TestClick(int control){var rectangle=control==1?AutomaticBounds:PinBounds;var mouse=new MouseEventArgs(MouseButtons.Left,1,rectangle.X+rectangle.Width/2,rectangle.Y+rectangle.Height/2,0);OnMouseDown(mouse);OnMouseUp(mouse);}
         protected override bool ShowWithoutActivation {get {return true;}}
-        protected override CreateParams CreateParams {get {CreateParams p = base.CreateParams; p.ExStyle |= 0x08000000 | 0x00000080; return p;}}
+        protected override CreateParams CreateParams {get {CreateParams p = base.CreateParams; p.Style &= ~0x00030000; p.ExStyle |= 0x08000000 | 0x00000080; return p;}}
         internal IndicatorForm(ContextMenuStrip menu) {
-            Text="AutoNauta";FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;StartPosition=FormStartPosition.Manual;Size=CollapsedSize;BackColor=Palette.Surface;ForeColor=Palette.Text;Font=new Font("Segoe UI",9F);ContextMenuStrip=menu;DoubleBuffered=true;Cursor=Cursors.SizeAll;AutoScaleMode=AutoScaleMode.None;
+            Text="AutoNauta";FormBorderStyle=FormBorderStyle.None;MinimizeBox=false;MaximizeBox=false;ShowInTaskbar=false;TopMost=true;StartPosition=FormStartPosition.Manual;Size=CollapsedSize;BackColor=Palette.Surface;ForeColor=Palette.Text;Font=new Font("Segoe UI",9F);ContextMenuStrip=menu;DoubleBuffered=true;Cursor=Cursors.SizeAll;AutoScaleMode=AutoScaleMode.None;
             tooltip.InitialDelay=1200;tooltip.ReshowDelay=300;tooltip.AutoPopDelay=12000;tooltip.ShowAlways=true;
             animation.Tick+=delegate{int delta=targetWidth-Width;if(Math.Abs(delta)<=2){ResizeBar(targetWidth);animation.Stop();}else ResizeBar(Width+Math.Sign(delta)*Math.Max(2,(int)(Math.Abs(delta)*.32)));};
             leaveTimer.Tick+=delegate{if(pinned){leaveTimer.Stop();return;}if(dragging||ContextMenuStrip.Visible||MouseOverBar())return;leaveTimer.Stop();SetExpanded(false,false);};
@@ -288,6 +305,30 @@ namespace NautaReconnect
             MouseCaptureChanged += delegate {if(!Capture) dragging = false;};
             ResizeBar(CompactWidth);
         }
+        // Show Desktop can minimize otherwise borderless forms. Restore on an
+        // actual minimize event only; never poll or activate the foreground window.
+        protected override void WndProc(ref Message message){
+            if(message.Msg==0x0112&&(message.WParam.ToInt64()&0xFFF0)==0xF020){message.Result=IntPtr.Zero;return;}
+            base.WndProc(ref message);
+        }
+        protected override void OnResize(EventArgs e){
+            base.OnResize(e);
+            if(WindowState!=FormWindowState.Minimized||restorePending||!IsHandleCreated||Disposing||IsDisposed)return;
+            restorePending=true;
+            try{BeginInvoke((MethodInvoker)delegate{restorePending=false;if(!Disposing&&!IsDisposed)EnsureVisible();});}
+            catch(InvalidOperationException){restorePending=false;}
+        }
+        internal void EnsureVisible(){
+            if(Disposing||IsDisposed)return;
+            if(WindowState!=FormWindowState.Normal)WindowState=FormWindowState.Normal;
+            animation.Stop();ResizeBar(targetWidth);
+            if(!Visible)Show();
+            TopMost=true;
+            SetWindowPos(Handle,new IntPtr(-1),0,0,0,0,0x0001|0x0002|0x0010|0x0040);
+            if(expanded&&ReadMetrics!=null)SetMetrics(ReadMetrics());
+            if(expanded&&!pinned&&!MouseOverBar())leaveTimer.Start();
+        }
+        [DllImport("user32.dll",SetLastError=true)] static extern bool SetWindowPos(IntPtr window,IntPtr insertAfter,int x,int y,int width,int height,uint flags);
         internal void MoveAnchor(Point point){anchor=UiContext.ClampPosition(point,CollapsedSize);Rectangle area=Screen.FromPoint(anchor).WorkingArea;expandLeft=anchor.X+ExpandedWidth>area.Right;ResizeBar(Width);}
         bool MouseOverBar(){return Region!=null&&Region.IsVisible(PointToClient(Cursor.Position));}
         internal void SetPinned(bool value){pinned=value;if(value){leaveTimer.Stop();SetExpanded(true,false);}else if(!MouseOverBar())SetExpanded(false,false);Invalidate();}

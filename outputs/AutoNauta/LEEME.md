@@ -51,6 +51,8 @@ La recuperación real y la consulta del contador de una sesión nueva siguen pen
 
 ## Versión 2.1 y ejecución prolongada
 
+La entrega actual es **2.1.1**. Corrige la desaparición del LED al pulsar «Mostrar escritorio». Si necesitas restaurarlo, haz clic derecho en el icono de AutoNauta junto al reloj y elige **Recuperar LED**. **Mostrar AutoNauta** recupera el LED y abre la ventana principal. La corrección no incorpora vigilancia adicional ni cambia la cuenta o la VPN.
+
 Con solo el LED visible, el programa evita repintados y actualizaciones de controles ocultos. La barra y las velocidades se actualizan al mostrarse. Conserva el muestreo de velocidades cada segundo y la vigilancia configurada.
 
 Los registros conservan un archivo activo y cuatro archivos rotados, alrededor de 2,5 MiB en total. Una consulta de cuenta que no aporta el contador no se repite automáticamente; el siguiente login o **Comprobar ahora** permite consultar nuevamente.
