@@ -89,3 +89,18 @@ El usuario informó una caída que tuvo que resolver mediante login manual. Se c
 La sesión manual existente se vinculó y el usuario confirmó que el tiempo aparece en el LED. No se cerró ni repitió su login. Para otras sesiones del navegador se añadió «Vincular contador del navegador…» al menú del LED. No se incluyeron las páginas personales ni sus tokens en la entrega.
 
 La recuperación completa durante la siguiente caída real sigue pendiente. Detalles y límites: `../../docs/RECONEXION-2.2.2.md`.
+
+## LED lateral discreto — 13 de octubre de 2026
+
+Entrega de diseño sobre 2.2.2; detalles en `LED-LATERAL.md`.
+
+- **Pruebas funcionales:** 76 correctas, 0 fallidas.
+- **`Compilar.ps1`:** correcto. La instancia personal de `outputs/releases/v2.2.1/` siguió en ejecución, sin cerrarla ni reemplazarla.
+- **`--ui-smoke`:** salida 0 a 100 %, 150 % (dos ejecuciones) y 200 %, más el ejecutable oficial; 26 capturas en cada ejecución. Incluye ambos laterales, cambios de estado durante la animación, gris, fijación, menú, arrastre, «Recuperar LED», minimización forzada y control de objetos GDI.
+- **Mouse real sobre `--preview` en verde de ejemplo:** revela la barra sin cambiar el foco y vuelve a la muesca después del retardo.
+- **Consumo de la interfaz en reposo con la muesca:** 0 ms de CPU en 30 s y GDI estable.
+- **Pendiente de prueba manual:** «Mostrar escritorio» y Win+D reales, juegos (sin verificar sobre pantalla completa exclusiva), varios monitores reales, barra de tareas lateral real y uso prolongado.
+
+### Integración independiente 2.3.0
+
+Codex compiló e instaló 2.3.0.0. Pasaron las 76 pruebas, las pruebas visuales a 100/150/200 % y una ejecución final a 150 %. El usuario confirmó muesca en verde, revelación con contador y acceso tras «Mostrar escritorio»: «Sí, todo funciona bien». Medición con vigilancia activa: aproximadamente 0,052 % de CPU total en una muestra de 60 s, con GDI y objetos de usuario estables. Evidencia, límites y revisión: `REVISION-LED-LATERAL-2.3.md`.

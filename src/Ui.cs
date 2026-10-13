@@ -51,7 +51,7 @@ namespace NautaReconnect
             username.Text = controller.Settings.Username ?? ""; main.UserField.Cue = "usuario@nauta.com.cu";
             menu = new ContextMenuStrip { Renderer = new MenuRenderer(), Font = Theme.Body, BackColor = Palette.Raised, ForeColor = Palette.Text, ShowImageMargin = false, ShowCheckMargin = true };
             var showMenu = new ToolStripMenuItem("Mostrar AutoNauta"); showMenu.Click += delegate { ShowMain(true); }; menu.Items.Add(showMenu);
-            restoreIndicatorMenu = new ToolStripMenuItem("Recuperar LED"); restoreIndicatorMenu.Click += delegate { if(!exiting) indicator.EnsureVisible(); }; menu.Items.Add(restoreIndicatorMenu);
+            restoreIndicatorMenu = new ToolStripMenuItem("Recuperar LED"); restoreIndicatorMenu.Click += delegate { if(!exiting) indicator.EnsureVisible(true); }; menu.Items.Add(restoreIndicatorMenu);
             menu.Items.Add(new ToolStripSeparator());
             var importMenu=new ToolStripMenuItem("Vincular contador del navegador…");importMenu.Click+=delegate{ImportCounter();};menu.Items.Add(importMenu);
             toggleMenu = new ToolStripMenuItem("Iniciar vigilancia"); toggleMenu.Click += delegate { ToggleRunning(); }; menu.Items.Add(toggleMenu);
@@ -82,6 +82,8 @@ namespace NautaReconnect
             // Create a dispatch handle before subscribing to worker status events.
             IntPtr handle = main.Handle; controller.StatusChanged += StatusChanged;controller.MetricsChanged+=MetricsChanged;
             ApplyStatus(controller.Current);ApplyMetrics(CurrentMetrics()); RefreshAccount(); RefreshActions(); tray.Visible = true; indicator.Show(); main.FitToContent(); main.Show();ApplyMetrics(CurrentMetrics());
+            // Preview only: an example green state to try the lateral notch with the real mouse.
+            if (preview && String.Equals(Environment.GetEnvironmentVariable("AUTONAUTA_PREVIEW_STATE"),"verde",StringComparison.OrdinalIgnoreCase)) ApplyStatus(new Status(Light.Green,"Internet conectado","Vista previa: estado de ejemplo, sin red."));
         }
         Telemetry CurrentMetrics() { return preview ? previewMetrics.Copy() : controller.Metrics; }
         void StatusChanged(object sender,EventArgs e) { Post(delegate { if (!exiting) { ApplyStatus(controller.Current); RefreshActions(); } }); }
@@ -214,7 +216,7 @@ namespace NautaReconnect
             });
         }
         void HideMain() { main.Hide(); }
-        void ShowMain(bool activate) { if(exiting) return; indicator.EnsureVisible(); main.Show(); if(main.WindowState == FormWindowState.Minimized) main.WindowState = FormWindowState.Normal;ApplyMetrics(CurrentMetrics()); if(activate) main.Activate(); }
+        void ShowMain(bool activate) { if(exiting) return; indicator.EnsureVisible(false); main.Show(); if(main.WindowState == FormWindowState.Minimized) main.WindowState = FormWindowState.Normal;ApplyMetrics(CurrentMetrics()); if(activate) main.Activate(); }
         public void MinimizeMain(){HideMain();}
         void DisplaySettingsChanged(object sender,EventArgs e) { Post(delegate { if(!exiting) PositionChanged(); }); }
         void PositionChanged() { indicator.MoveAnchor(ClampPosition(indicator.AnchorLocation,indicator.CollapsedSize)); positionTimer.Stop(); positionTimer.Start(); }
@@ -255,6 +257,9 @@ namespace NautaReconnect
             if(Thread.CurrentThread.GetApartmentState() != ApartmentState.STA) throw new InvalidOperationException("La prueba visual necesita STA.");
             if(!preview) throw new InvalidOperationException("La prueba visual debe ejecutarse en vista previa, sin red.");
             Directory.CreateDirectory(folder); Status original = controller.Current; Point location = indicator.AnchorLocation;
+            // The classic checks run with lateral docking off and a pointer far from the
+            // LED, so the real mouse and docking delays cannot change their result.
+            Point farPointer=new Point(-32000,-32000);indicator.CursorSource=delegate{return farPointer;};indicator.AutoHideEnabled=false;
             Assert(main.Visible && indicator.Visible,"Principal e indicador deben ser visibles inicialmente."); Assert(password.Text.Length == 0 && password.UseSystemPasswordChar,"La contraseña debe estar vacía y enmascarada."); Assert(indicator.TopMost,"Indicador topmost.");
             Assert(indicator.Bounds == indicator.LayeredBounds,"La ventana del LED debe coincidir con la superficie dibujada.");
             main.WindowState = FormWindowState.Minimized; Application.DoEvents(); Assert(!main.Visible && indicator.Visible,"Minimizar oculta solo principal.");
@@ -343,8 +348,112 @@ namespace NautaReconnect
                 Assert(main.Log.Height>0&&(main.Canvas.AutoScrollMinSize.Height>=main.Exit.Bottom-main.Canvas.AutoScrollPosition.Y||main.Exit.Bottom<=main.Canvas.ClientSize.Height),"Una ventana pequeña conserva acceso a todos los controles.");
                 Snapshot(main,Path.Combine(folder,"ui-main-compacta.png"));main.ClientSize=before;Application.DoEvents();
             }finally{controller.Settings.Username=savedUser;controller.Settings.ProtectedPassword=savedPassword;editingAccount=false;smokeInteractive=false;RefreshAccount();}
-            indicator.ReadMetrics=CurrentMetrics;indicator.SetMetrics(CurrentMetrics());ApplyStatus(original);RefreshActions();indicator.SaveSnapshot(Path.Combine(folder,"ui-indicator.png"));
-            menu.Show(main,new Point(Theme.S(40),Theme.S(40)));Application.DoEvents();Snapshot(menu,Path.Combine(folder,"ui-menu.png"));menu.Close();
+            SmokeLateral(folder,farPointer);
+            indicator.MoveAnchor(location);indicator.ReadMetrics=CurrentMetrics;indicator.SetMetrics(CurrentMetrics());ApplyStatus(original);RefreshActions();indicator.SaveSnapshot(Path.Combine(folder,"ui-indicator.png"));
+            menu.Show(main,new Point(Theme.S(40),Theme.S(40)));Application.DoEvents();Snapshot(menu,Path.Combine(folder,"ui-menu.png"));menu.Close();Application.DoEvents();
+            indicator.CursorSource=delegate{return Cursor.Position;};
+        }
+        // Lateral docking in green: both sides, hover, delays, state changes during
+        // the animation, pin, menu, drag, «Recuperar LED», Show Desktop and resources.
+        void SmokeLateral(string folder,Point far) {
+            IndicatorForm ind=indicator; Rectangle area=Screen.FromPoint(ind.LedScreenPoint).WorkingArea;
+            ind.CursorSource=delegate{return far;};
+            var example=previewMetrics.Copy();ind.ReadMetrics=delegate{return example;};
+            ind.SetPinned(false);ind.SetExpanded(false,true);ind.SetStatus(Light.Gray,"Pausado","");ind.AutoHideEnabled=true;
+            Size capsule=ind.CollapsedSize;int depth=ind.NotchDepth;
+            Assert(capsule.Width<=Theme.S(34)&&capsule.Height<=Theme.S(28)&&capsule.Width>capsule.Height,"La cápsula replegada debe ser pequeña y ovalada.");
+            // Pure geometry: negative coordinates and a left taskbar keep the notch on its own monitor.
+            var leftMonitor=new Rectangle(-1920,0,1920,1040);var sideTaskbar=new Rectangle(1968,0,1712,1080);
+            Assert(!IndicatorForm.NearestRight(leftMonitor,-1800,capsule.Width)&&IndicatorForm.DockedX(leftMonitor,false,depth)==-1920,"Monitor con coordenadas negativas: lateral izquierdo propio.");
+            Assert(IndicatorForm.NearestRight(leftMonitor,-200,capsule.Width)&&IndicatorForm.DockedX(leftMonitor,true,depth)==-depth,"Monitor con coordenadas negativas: la muesca derecha termina en su borde, no en el monitor vecino.");
+            Assert(!IndicatorForm.NearestRight(sideTaskbar,2000,capsule.Width)&&IndicatorForm.DockedX(sideTaskbar,false,depth)==1968,"Con barra de tareas lateral la muesca queda junto a ella, dentro del área útil.");
+            foreach(bool right in new bool[]{false,true}) {
+                string side=right?"derecha":"izquierda";
+                ind.SetStatus(Light.Gray,"Pausado","");
+                ind.MoveAnchor(new Point(right?area.Right-area.Width/4:area.Left+area.Width/4,area.Top+area.Height/3));Point anchor=ind.AnchorLocation;
+                Assert(!ind.Docked&&!ind.HidePending&&ind.LayeredBounds==new Rectangle(anchor,capsule),"Gris: LED completo visible en su posición ("+side+").");
+                Assert(ind.Bounds==ind.LayeredBounds,"La ventana sigue a la superficie al mover ("+side+"). Ventana="+ind.Bounds+", superficie="+ind.LayeredBounds+", error="+ind.LastLayerError+", visible="+ind.Visible+", nativa="+ind.NativeBounds+", estado="+ind.WindowState);
+                ind.SetStatus(Light.Green,"Internet conectado","");
+                Assert(ind.HidePending&&ind.PendingDelay>=400&&ind.PendingDelay<=600&&!ind.Docked,"Verde espera un breve retardo antes de ocultar ("+side+").");
+                ind.TestElapseDelay();Assert(ind.Docked&&ind.Hidden&&ind.Animating,"El ocultamiento es una transición ("+side+").");
+                ind.TestAdvance(.5);Assert(ind.LayeredBounds.Width<capsule.Width&&area.Contains(ind.LayeredBounds),"A mitad de la transición sigue dentro de su monitor ("+side+").");
+                ind.TestFinishAnimation();Rectangle notch=ind.LayeredBounds;
+                Assert(notch.Width==depth&&(right?notch.Right==area.Right:notch.Left==area.Left)&&area.Contains(notch)&&ind.Bounds==notch&&notch.Y==anchor.Y,"La muesca queda en el lateral "+side+", a la altura elegida. Muesca="+notch+", ventana="+ind.Bounds+", área="+area+", ancla="+anchor);
+                Assert(ind.AlphaAt(depth/2,capsule.Height/2)==255&&ind.AlphaAt(depth/2,0)==0&&!ind.Expanded&&!ind.HidePending&&!ind.Animating,"Muesca estable, visible y sin temporizadores ("+side+").");
+                int renders=ind.RenderCount;for(int i=0;i<100;i++)ind.SetMetrics(new Telemetry{RatesReady=true,DownloadBytesPerSecond=i*1000});
+                for(int i=0;i<20;i++)ind.SetStatus(Light.Green,"Internet conectado","");
+                Assert(ind.RenderCount==renders,"La muesca no se redibuja por métricas invisibles ni estados repetidos ("+side+").");
+                ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-"+side+"-muesca.png"));
+                ind.TestHover(true);Assert(ind.Expanded&&!ind.Hidden&&ind.Animating,"Pasar el mouse por la muesca revela la barra ("+side+").");
+                ind.TestAdvance(.45);Rectangle opening=ind.LayeredBounds;
+                Assert(opening.Contains(notch)&&(right?opening.Right==area.Right:opening.Left==area.Left),"La apertura cubre la muesca: zona continua bajo el cursor ("+side+").");
+                ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-"+side+"-apertura.png"));
+                ind.TestFinishAnimation();Rectangle bar=ind.LayeredBounds;
+                Assert(bar.Width==ind.ExpandedWidth&&area.Contains(bar)&&(right?bar.Right==area.Right&&ind.LedScreenPoint.X>bar.Left+bar.Width/2:bar.Left==area.Left&&ind.LedScreenPoint.X<bar.Left+bar.Width/2),"La barra se abre hacia el interior desde el lateral "+side+".");
+                ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-"+side+"-barra.png"));
+                ind.TestHover(false);Assert(ind.HidePending&&ind.PendingDelay>=400&&ind.PendingDelay<=600&&ind.Expanded,"Al salir espera antes de volver a la muesca ("+side+").");
+                ind.TestElapseDelay();ind.TestAdvance(.3);ind.TestHover(true);
+                Assert(ind.Expanded&&!ind.Hidden&&!ind.HidePending,"Volver con el mouse durante el ocultamiento lo invierte sin cerrar ("+side+").");
+                ind.TestFinishAnimation();Assert(ind.LayeredBounds==bar,"Tras invertir, la barra queda completa ("+side+").");
+                ind.TestHover(false);ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden&&ind.LayeredBounds==notch,"Vuelve a la muesca ("+side+").");
+            }
+            // Yellow during the reveal animation: full capsule at the user's position at once.
+            Point home=ind.AnchorLocation;
+            ind.TestHover(true);ind.TestAdvance(.4);ind.TestHover(false);ind.SetStatus(Light.Yellow,"Esperando recuperación","");
+            Assert(!ind.Docked&&!ind.Animating&&!ind.HidePending&&ind.LayeredBounds==new Rectangle(home,capsule)&&ind.AlphaAt(capsule.Width/2,capsule.Height/2)==255,"Amarillo cancela la transición y muestra el LED completo en su posición.");
+            ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-amarillo.png"));
+            // Back to green, then red in the middle of the trip to the edge.
+            ind.SetStatus(Light.Green,"Internet conectado","");Assert(ind.HidePending,"Al recuperar el verde vuelve a programar el ocultamiento.");
+            ind.TestElapseDelay();ind.TestAdvance(.5);ind.SetStatus(Light.Red,"Error del portal","");
+            Assert(!ind.Docked&&!ind.Animating&&ind.LayeredBounds==new Rectangle(home,capsule),"Rojo durante el ocultamiento muestra el LED completo de inmediato.");
+            ind.SetStatus(Light.Gray,"Comprobando conexión","");ind.TestElapseDelay();
+            Assert(!ind.Docked&&!ind.HidePending&&ind.LayeredBounds==new Rectangle(home,capsule),"Gris mantiene el LED completo visible.");
+            ind.SetStatus(Light.Green,"Internet conectado","");ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden,"Verde sin interacción vuelve a la muesca.");
+            // Pin has priority in every state.
+            ind.SetPinned(true);ind.TestFinishAnimation();Rectangle pinnedBar=ind.LayeredBounds;
+            Assert(ind.Expanded&&!ind.Hidden&&pinnedBar.Width==ind.ExpandedWidth&&!ind.HidePending,"Fijar revela y expande la barra en verde.");
+            ind.TestElapseDelay();ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-fijada.png"));
+            ind.SetStatus(Light.Yellow,"Esperando recuperación","");Assert(ind.Expanded&&!ind.Docked&&ind.CurrentWidth==ind.ExpandedWidth,"Fijada en amarillo permanece expandida en su posición.");
+            ind.SetStatus(Light.Green,"Internet conectado","");Assert(ind.Expanded&&!ind.HidePending,"Fijada en verde no se oculta.");
+            ind.SetPinned(false);Assert(ind.HidePending,"Al quitar la fijación vuelve al comportamiento automático.");
+            ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden&&!ind.Expanded,"Sin fijación vuelve a la muesca.");
+            // Context menu suspends hiding until it closes.
+            ind.TestHover(true);ind.TestFinishAnimation();menu.Show(new Point(area.Left+area.Width/2,area.Top+area.Height/2));Application.DoEvents();
+            ind.TestHover(false);Assert(ind.MenuOpen&&!ind.HidePending,"Con el menú abierto no se programa el ocultamiento.");
+            menu.Close();Application.DoEvents();Assert(!ind.MenuOpen&&ind.HidePending,"Al cerrar el menú se reanuda el ocultamiento.");
+            ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden,"Tras el menú vuelve a la muesca.");
+            // Drag from the edge: no hiding while dragging; the new position decides the side.
+            int moves=0;EventHandler counted=delegate{moves++;};ind.MovedByUser+=counted;
+            ind.TestHover(true);ind.TestFinishAnimation();Point savedAnchor=ind.AnchorLocation;
+            Point drop=new Point(area.Right-area.Width/3,area.Top+area.Height/2);bool sawDrag=false;
+            ind.TestDrag(drop,delegate{sawDrag=ind.Dragging&&!ind.Docked&&!ind.HidePending;ind.TestElapseDelay();sawDrag=sawDrag&&!ind.Hidden;});
+            ind.MovedByUser-=counted;
+            Assert(sawDrag&&moves==1&&ind.AnchorLocation!=savedAnchor&&!ind.Docked,"El arrastre suspende el ocultamiento y conserva la posición elegida.");
+            ind.TestHover(false);ind.TestElapseDelay();ind.TestFinishAnimation();
+            Assert(ind.Hidden&&ind.LayeredBounds.Right==area.Right,"Después de mover, se oculta en el lateral más cercano a la nueva posición.");
+            // «Recuperar LED» reveals it for a moment without opening the window or taking focus.
+            bool mainWasVisible=main.Visible;IntPtr foreground=GetForegroundWindow();restoreIndicatorMenu.PerformClick();Application.DoEvents();
+            Assert(!ind.Hidden&&ind.CurrentWidth==capsule.Width&&ind.LayeredBounds.Right==area.Right&&main.Visible==mainWasVisible&&GetForegroundWindow()==foreground,"Recuperar LED revela la cápsula sin abrir la ventana ni tomar el foco.");
+            Assert(ind.HidePending&&ind.PendingDelay==IndicatorForm.RevealDelay,"La revelación es temporal.");
+            ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-recuperado.png"));
+            ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden&&!ind.HidePending,"Tras revelar vuelve a ocultarse una sola vez, sin bucle.");
+            // Forced minimize (Show Desktop path) keeps the notch, without revealing or looping.
+            Rectangle hiddenBounds=ind.LayeredBounds;ind.WindowState=FormWindowState.Minimized;Application.DoEvents();
+            Assert(ind.WindowState==FormWindowState.Normal&&ind.Visible&&ind.Hidden&&ind.LayeredBounds==hiddenBounds&&ind.Bounds==hiddenBounds&&!ind.HidePending,"La recuperación de Mostrar escritorio conserva la muesca.");
+            // Resources: after a warm-up round, cycles of reveal/hide and state changes must not grow.
+            uint gdiBefore=0,userBefore=0;
+            for(int round=0;round<2;round++){
+                if(round==1){Application.DoEvents();gdiBefore=GetGuiResources(GetCurrentProcess(),0);userBefore=GetGuiResources(GetCurrentProcess(),1);}
+                for(int i=0;i<150;i++){
+                    ind.TestHover(true);ind.TestAdvance(.5);ind.SetMetrics(new Telemetry{RatesReady=true,DownloadBytesPerSecond=i*997});ind.TestFinishAnimation();ind.TestHover(false);ind.TestElapseDelay();ind.TestAdvance(.5);
+                    if(i%10==0){ind.SetStatus(Light.Yellow,"Esperando","");ind.SetStatus(Light.Green,"Internet conectado","");ind.TestElapseDelay();}
+                    ind.TestFinishAnimation();
+                }
+            }
+            Application.DoEvents();
+            Assert(GetGuiResources(GetCurrentProcess(),0)<=gdiBefore+4&&GetGuiResources(GetCurrentProcess(),1)<=userBefore+4,"Ocultar y revelar no acumula objetos GDI ni de usuario. GDI "+gdiBefore+"→"+GetGuiResources(GetCurrentProcess(),0));
+            Assert(ind.Hidden&&!ind.Animating&&!ind.HidePending,"Al terminar queda estable en la muesca, sin temporizadores activos.");
+            ind.AutoHideEnabled=false;Assert(!ind.Docked,"Sin ocultamiento lateral vuelve a la posición habitual.");
         }
         static void Assert(bool condition,string message) { if(!condition) throw new InvalidOperationException("UI smoke: " + message); }
         // PrintWindow captures the real frame (dark title bar); DrawToBitmap is the fallback.
@@ -372,19 +481,32 @@ namespace NautaReconnect
     }
 
     // Floating indicator. At rest it is only the LED inside a small capsule; on
-    // hover it widens to show time, speeds, AUTO/MAN and the pin. The window is
-    // layered: one reusable premultiplied DIB gives anti-aliased edges and is
-    // redrawn only when something visible changes.
+    // hover it widens to show time, speeds, AUTO/MAN and the pin. With a verified
+    // (green) connection and no interaction it docks to the nearest side edge of
+    // its monitor, leaving a small notch that reveals the bar on hover. The
+    // window is layered: one reusable premultiplied DIB gives anti-aliased edges
+    // and is redrawn only when something visible changes. Timers run only during
+    // a transition or a pending delay.
     internal sealed class IndicatorForm : Form {
-        readonly int compactWidth=Theme.S(46),expandedWidth=Theme.S(426),barHeight=Theme.S(30);
+        // 96-DPI units: capsule 32×26, bar 400×26, notch 7×22 visible.
+        readonly int compactWidth=Theme.S(32),expandedWidth=Theme.S(400),barHeight=Theme.S(26),notchDepth=Math.Max(5,Theme.S(7)),notchHeight=Theme.S(22);
+        internal const int DockDelay=500,CollapseDelay=180,RevealDelay=2500;
         readonly ToolTip tooltip=new ToolTip();
         readonly System.Windows.Forms.Timer animation=new System.Windows.Forms.Timer{Interval=15};
-        readonly System.Windows.Forms.Timer leaveTimer=new System.Windows.Forms.Timer{Interval=180};
+        readonly System.Windows.Forms.Timer idleTimer=new System.Windows.Forms.Timer{Interval=DockDelay};
+        readonly ContextMenuStrip contextMenu;
         readonly StringFormat leftText=new StringFormat(StringFormatFlags.NoWrap){LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter};
         readonly StringFormat centerText=new StringFormat(StringFormatFlags.NoWrap){Alignment=StringAlignment.Center,LineAlignment=StringAlignment.Center};
+        // X, width and notch amount (0 capsule or bar, 1 notch). Height is constant,
+        // so notch and bar share one continuous hover zone.
+        struct Geometry{internal int X,W;internal float N;internal bool Same(Geometry o){return X==o.X&&W==o.W&&Math.Abs(N-o.N)<.001F;}}
+        Geometry current,from,to;
+        long tweenStart;int tweenMs;bool tweening;
+        // anchor is the user's capsule position; docking geometry is derived from it and never saved.
         Point anchor,dragCursor,dragLocation,location;
-        bool dragging,moved,expanded,pinned,expandLeft,automatic=true,restorePending,timeKnown,syncPending;
-        int targetWidth,currentWidth,pressedControl,hoverControl;
+        bool dragging,moved,expanded,pinned,expandLeft,automatic=true,restorePending,timeKnown,syncPending,hovering,menuOpen,docked,hidden,autoHide=true;
+        int currentWidth,pressedControl,hoverControl;
+        float notch;
         string statusText="",cachedTime="No disponible",cachedDownload="—",cachedUpload="—",cachedTooltip="";
         Telemetry metrics=new Telemetry();
         IntPtr memoryDc,dib,previousBitmap;
@@ -392,42 +514,92 @@ namespace NautaReconnect
         Graphics surfaceGraphics;
         internal Light CurrentLight {get;private set;}
         internal int RenderCount {get;private set;}
+        internal int LastLayerError {get;private set;}
+        internal Rectangle NativeBounds{get{RECT r;GetWindowRect(Handle,out r);return Rectangle.FromLTRB(r.Left,r.Top,r.Right,r.Bottom);}}
+        [StructLayout(LayoutKind.Sequential)] struct RECT{public int Left,Top,Right,Bottom;}
+        [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window,out RECT rect);
         internal event EventHandler OpenMain,MovedByUser,AutoLoginRequested,PinRequested;
         internal event EventHandler ExpansionChanged;
         internal Func<Telemetry> ReadMetrics;
+        // Tests replace the pointer source to stay independent of the real mouse.
+        internal Func<Point> CursorSource=delegate{return Cursor.Position;};
         internal Size CollapsedSize{get{return new Size(compactWidth,barHeight);}}
         internal int ExpandedWidth{get{return expandedWidth;}}
+        internal int NotchDepth{get{return notchDepth;}}
         internal int CurrentWidth{get{return currentWidth;}}
         internal Rectangle LayeredBounds{get{return new Rectangle(location,new Size(currentWidth,barHeight));}}
         internal Point AnchorLocation{get{return anchor;}}
         internal bool Expanded{get{return expanded;}}
         internal bool Pinned{get{return pinned;}}
-        internal Point LedScreenPoint{get{return new Point(location.X+(expandLeft?currentWidth-compactWidth/2:compactWidth/2),location.Y+barHeight/2);}}
+        internal bool Docked{get{return docked;}}
+        internal bool Hidden{get{return docked&&hidden;}}
+        internal bool Animating{get{return tweening;}}
+        internal bool HidePending{get{return idleTimer.Enabled;}}
+        internal int PendingDelay{get{return idleTimer.Interval;}}
+        internal bool MenuOpen{get{return menuOpen;}}
+        internal bool Dragging{get{return dragging;}}
+        // Lateral docking in green; the smoke test turns it off for the classic checks.
+        internal bool AutoHideEnabled{get{return autoHide;}set{
+            if(autoHide==value)return;autoHide=value;
+            if(!value){idleTimer.Stop();if(docked){docked=hidden=false;StopTween();Retarget(true);}}
+            else if(!hovering)ScheduleIdle(IdleDelay);
+        }}
+        internal Point LedScreenPoint{get{int side=Math.Min(currentWidth,compactWidth)/2;return new Point(location.X+(expandLeft?currentWidth-side:side),location.Y+barHeight/2);}}
         internal void TestClick(int control){var rectangle=control==1?AutomaticBounds:PinBounds;var mouse=new MouseEventArgs(MouseButtons.Left,1,rectangle.X+rectangle.Width/2,rectangle.Y+rectangle.Height/2,0);OnMouseDown(mouse);OnMouseUp(mouse);}
+        internal void TestHover(bool inside){if(inside)PointerEntered();else PointerLeft();}
+        internal void TestElapseDelay(){if(idleTimer.Enabled)IdleTick();}
+        internal void TestAdvance(double fraction){if(!tweening)return;tweenStart=System.Diagnostics.Stopwatch.GetTimestamp()-(long)(fraction*tweenMs*System.Diagnostics.Stopwatch.Frequency/1000);Step(fraction);}
+        internal void TestFinishAnimation(){if(tweening)Step(1);}
+        // Drags from the LED to a screen point through the real mouse handlers.
+        internal void TestDrag(Point target,Action whileDragging){
+            Point start=LedScreenPoint,cursor=start;Func<Point> previous=CursorSource;CursorSource=delegate{return cursor;};
+            try{
+                Point client=PointToClient(start);var args=new MouseEventArgs(MouseButtons.Left,1,client.X,client.Y,0);
+                OnMouseDown(args);cursor=new Point((start.X+target.X)/2,(start.Y+target.Y)/2);OnMouseMove(args);cursor=target;OnMouseMove(args);
+                if(whileDragging!=null)whileDragging();
+                OnMouseUp(args);
+            }finally{CursorSource=previous;}
+        }
         internal void SetHover(int control){if(hoverControl==control)return;hoverControl=control;UpdateTooltip();Render();}
         protected override bool ShowWithoutActivation {get {return true;}}
         protected override CreateParams CreateParams {get {CreateParams p = base.CreateParams; p.Style &= ~0x00030000; p.ExStyle |= 0x08000000 | 0x00000080 | 0x00080000; return p;}}
         internal IndicatorForm(ContextMenuStrip menu) {
             Text="AutoNauta";FormBorderStyle=FormBorderStyle.None;MinimizeBox=false;MaximizeBox=false;ShowInTaskbar=false;TopMost=true;StartPosition=FormStartPosition.Manual;AutoScaleMode=AutoScaleMode.None;
-            BackColor=Palette.Capsule;ForeColor=Palette.Text;Font=Theme.IndicatorText;ContextMenuStrip=menu;Cursor=Cursors.SizeAll;
+            BackColor=Palette.Capsule;ForeColor=Palette.Text;Font=Theme.IndicatorText;ContextMenuStrip=menu;Cursor=Cursors.SizeAll;contextMenu=menu;
             SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.Opaque,true);
-            currentWidth=targetWidth=compactWidth;Size=CollapsedSize;
+            current=new Geometry{W=compactWidth};currentWidth=compactWidth;Size=CollapsedSize;
             tooltip.InitialDelay=900;tooltip.ReshowDelay=300;tooltip.AutoPopDelay=12000;tooltip.ShowAlways=true;
-            animation.Tick+=delegate{int delta=targetWidth-currentWidth;if(Math.Abs(delta)<=2){animation.Stop();ResizeBar(targetWidth);}else ResizeBar(currentWidth+Math.Sign(delta)*Math.Max(2,(int)(Math.Abs(delta)*.32)));};
-            leaveTimer.Tick+=delegate{if(pinned){leaveTimer.Stop();return;}if(dragging||ContextMenuStrip.Visible||MouseOverBar())return;leaveTimer.Stop();SetExpanded(false,false);};
-            MouseEnter+=delegate{leaveTimer.Stop();SetExpanded(true,false);};
-            MouseLeave+=delegate{SetHover(0);leaveTimer.Start();};
-            MouseDown+=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;pressedControl=HitControl(e.Location);if(pressedControl!=0)return;dragging=true;moved=false;dragCursor=Cursor.Position;dragLocation=anchor;Capture=true;};
-            MouseMove+=delegate(object sender,MouseEventArgs e){int hit=dragging?0:HitControl(e.Location);Cursor=hit==0?Cursors.SizeAll:Cursors.Hand;SetHover(hit);if(!dragging)return;Point p=Cursor.Position;int dx=p.X-dragCursor.X,dy=p.Y-dragCursor.Y;if(Math.Abs(dx)+Math.Abs(dy)>3)moved=true;if(moved)MoveAnchor(new Point(dragLocation.X+dx,dragLocation.Y+dy));};
+            animation.Tick+=delegate{Tick();};
+            idleTimer.Tick+=delegate{IdleTick();};
+            menu.Opening+=MenuOpening;menu.Closed+=MenuClosed;
+            MouseEnter+=delegate{PointerEntered();};
+            MouseLeave+=delegate{PointerLeft();};
+            MouseDown+=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;pressedControl=HitControl(e.Location);if(pressedControl!=0)return;dragging=true;moved=false;dragCursor=CursorSource();dragLocation=anchor;idleTimer.Stop();Capture=true;};
+            MouseMove+=delegate(object sender,MouseEventArgs e){
+                int hit=dragging?0:HitControl(e.Location);Cursor=hit==0?Cursors.SizeAll:Cursors.Hand;SetHover(hit);if(!dragging)return;
+                Point p=CursorSource();int dx=p.X-dragCursor.X,dy=p.Y-dragCursor.Y;
+                if(!moved&&Math.Abs(dx)+Math.Abs(dy)>3){
+                    moved=true;
+                    // Leave the edge from where the capsule is drawn now, without a jump.
+                    if(docked){anchor=UiContext.ClampPosition(VisibleCapsuleLocation(),CollapsedSize);docked=hidden=false;StopTween();dragLocation=new Point(anchor.X-dx,anchor.Y-dy);}
+                }
+                if(moved)MoveAnchor(new Point(dragLocation.X+dx,dragLocation.Y+dy));
+            };
             MouseUp += delegate(object sender,MouseEventArgs e) {
                 if(e.Button!=MouseButtons.Left)return;
                 if(pressedControl!=0){int action=pressedControl;pressedControl=0;if(HitControl(e.Location)==action){var handler=action==1?AutoLoginRequested:PinRequested;if(handler!=null)handler(this,EventArgs.Empty);}return;}
                 if(!dragging)return;dragging=false;Capture=false;if(moved&&MovedByUser!=null)MovedByUser(this,EventArgs.Empty);
+                if(!MouseOverBar())ScheduleIdle(IdleDelay);
             };
             MouseDoubleClick += delegate(object sender,MouseEventArgs e) {if(e.Button == MouseButtons.Left && HitControl(e.Location)==0 && OpenMain != null) OpenMain(this,EventArgs.Empty);};
-            MouseCaptureChanged += delegate {if(!Capture) dragging = false;};
+            MouseCaptureChanged += delegate {if(!Capture&&dragging){dragging=false;if(!MouseOverBar())ScheduleIdle(IdleDelay);}};
             UpdateTooltip();
         }
+        void PointerEntered(){hovering=true;idleTimer.Stop();if(docked)hidden=false;SetExpandedFlag(true);Retarget(false);}
+        void PointerLeft(){hovering=false;SetHover(0);ScheduleIdle(IdleDelay);}
+        void MenuOpening(object sender,System.ComponentModel.CancelEventArgs e){menuOpen=true;idleTimer.Stop();}
+        void MenuClosed(object sender,ToolStripDropDownClosedEventArgs e){menuOpen=false;if(!MouseOverBar())ScheduleIdle(IdleDelay);}
+        Point VisibleCapsuleLocation(){return new Point(expandLeft?location.X+currentWidth-compactWidth:location.X,location.Y);}
         // Show Desktop can minimize otherwise borderless forms. Restore on an
         // actual minimize event only; never poll or activate the foreground window.
         protected override void WndProc(ref Message message){
@@ -448,7 +620,7 @@ namespace NautaReconnect
             base.SetBoundsCore(x,y,width,height,specified);
         }
         [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
-        protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);ResizeBar(currentWidth);}
+        protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);Retarget(true);}
         protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)Render();}
         protected override void OnPaintBackground(PaintEventArgs e){}
         protected override void OnPaint(PaintEventArgs e){}
@@ -456,27 +628,36 @@ namespace NautaReconnect
             base.OnResize(e);
             if(WindowState!=FormWindowState.Minimized||restorePending||!IsHandleCreated||Disposing||IsDisposed)return;
             restorePending=true;
-            try{BeginInvoke((MethodInvoker)delegate{restorePending=false;if(!Disposing&&!IsDisposed)EnsureVisible();});}
+            try{BeginInvoke((MethodInvoker)delegate{restorePending=false;if(!Disposing&&!IsDisposed)EnsureVisible(false);});}
             catch(InvalidOperationException){restorePending=false;}
         }
-        internal void EnsureVisible(){
+        // reveal=true is «Recuperar LED»: a docked indicator shows its capsule at the
+        // edge for a few seconds. Show Desktop recovery (reveal=false) keeps the
+        // current state, so hiding and restoring never fight each other.
+        internal void EnsureVisible(bool reveal){
             if(Disposing||IsDisposed)return;
             if(WindowState!=FormWindowState.Normal)WindowState=FormWindowState.Normal;
-            animation.Stop();ResizeBar(targetWidth);
+            if(reveal&&docked)hidden=false;
+            StopTween();Retarget(true);
             if(!Visible)Show();
             TopMost=true;
             SetWindowPos(Handle,new IntPtr(-1),0,0,0,0,0x0001|0x0002|0x0010|0x0040);
             if(expanded&&ReadMetrics!=null)SetMetrics(ReadMetrics());
-            if(expanded&&!pinned&&!MouseOverBar())leaveTimer.Start();
+            if(reveal&&docked&&!pinned&&!hovering)ScheduleIdle(RevealDelay);else if(!MouseOverBar())ScheduleIdle(IdleDelay);
         }
-        internal void MoveAnchor(Point point){anchor=UiContext.ClampPosition(point,CollapsedSize);Rectangle area=Screen.FromPoint(anchor).WorkingArea;expandLeft=anchor.X+expandedWidth>area.Right;ResizeBar(currentWidth);}
+        internal void MoveAnchor(Point point){anchor=UiContext.ClampPosition(point,CollapsedSize);StopTween();Retarget(true);}
         bool MouseOverBar(){
             if(!IsHandleCreated)return false;
-            Point p=PointToClient(Cursor.Position);float r=barHeight/2F;
+            Point p=PointToClient(CursorSource());
             if(p.Y<0||p.Y>=barHeight||p.X<0||p.X>=currentWidth)return false;
-            float cx=Math.Max(r,Math.Min(currentWidth-r,p.X));return (p.X-cx)*(p.X-cx)+(p.Y-r)*(p.Y-r)<=r*r;
+            return AlphaAt(p.X,p.Y)>0;
         }
-        internal void SetPinned(bool value){bool changed=pinned!=value;pinned=value;if(value){leaveTimer.Stop();SetExpanded(true,false);}else if(!MouseOverBar())SetExpanded(false,false);if(changed){UpdateTooltip();if(expanded)Render();}}
+        internal void SetPinned(bool value){
+            bool changed=pinned!=value;pinned=value;
+            if(value){idleTimer.Stop();if(docked)hidden=false;SetExpandedFlag(true);Retarget(false);}
+            else if(!MouseOverBar()){if(autoHide&&CurrentLight==Light.Green)ScheduleIdle(DockDelay);else{SetExpandedFlag(false);Retarget(false);}}
+            if(changed){UpdateTooltip();if(expanded)Render();}
+        }
         internal void SetAutomatic(bool value){if(automatic==value)return;automatic=value;UpdateTooltip();if(expanded)Render();}
         void UpdateTooltip(){string text=TooltipText();if(text!=cachedTooltip){cachedTooltip=text;tooltip.SetToolTip(this,text);}}
         internal void SetMetrics(Telemetry value){
@@ -485,28 +666,75 @@ namespace NautaReconnect
             string time=known?RateMonitor.TimeText(metrics.Remaining):"No disponible",download=metrics.RatesReady?RateMonitor.Speed(metrics.DownloadBytesPerSecond):"—",upload=metrics.RatesReady?RateMonitor.Speed(metrics.UploadBytesPerSecond):"—";
             bool changed=time!=cachedTime||download!=cachedDownload||upload!=cachedUpload||known!=timeKnown;cachedTime=time;cachedDownload=download;cachedUpload=upload;timeKnown=known;UpdateTooltip();if(changed)Render();
         }
-        internal void SetStatus(Light light,string text,string info) {bool changed=CurrentLight!=light;CurrentLight=light;statusText=text??"";UpdateTooltip();if(changed)Render();}
-        internal void SetExpanded(bool value,bool immediate){
+        internal void SetStatus(Light light,string text,string info) {
+            bool changed=CurrentLight!=light;CurrentLight=light;statusText=text??"";UpdateTooltip();
+            if(!changed)return;
+            if(light!=Light.Green&&docked){
+                // Yellow, red or gray: cancel hiding and show the full LED at the user's position at once.
+                docked=hidden=false;StopTween();SetExpandedFlag(pinned||hovering);Retarget(true);
+            }else Render();
+            if(hovering)idleTimer.Stop();else ScheduleIdle(IdleDelay);
+        }
+        internal void SetExpanded(bool value,bool immediate){SetExpandedFlag(value);if(expanded&&docked)hidden=false;if(immediate)StopTween();Retarget(immediate);}
+        void SetExpandedFlag(bool value){
             bool old=expanded;expanded=value||pinned;
             if(!expanded)hoverControl=0;
             if(expanded&&ReadMetrics!=null)SetMetrics(ReadMetrics());
             if(old!=expanded){var changed=ExpansionChanged;if(changed!=null)changed(this,EventArgs.Empty);}
-            Rectangle area=Screen.FromPoint(new Point(anchor.X+compactWidth/2,anchor.Y+barHeight/2)).WorkingArea;
-            expandLeft=anchor.X+expandedWidth>area.Right;
-            targetWidth=expanded?Math.Min(expandedWidth,area.Width):compactWidth;
-            if(immediate){animation.Stop();ResizeBar(targetWidth);}else if(currentWidth!=targetWidth)animation.Start();
         }
-        void ResizeBar(int width){
-            Rectangle area=Screen.FromPoint(new Point(anchor.X+compactWidth/2,anchor.Y+barHeight/2)).WorkingArea;
-            currentWidth=Math.Max(compactWidth,Math.Min(expandedWidth,width));
-            location=new Point(Math.Max(area.Left,Math.Min(area.Right-currentWidth,expandLeft?anchor.X+compactWidth-currentWidth:anchor.X)),anchor.Y);
+        // The real connection color decides docking, never AUTO/MAN.
+        int IdleDelay{get{return autoHide&&CurrentLight==Light.Green?DockDelay:CollapseDelay;}}
+        bool NeedsIdleWork(){if(pinned)return false;if(autoHide&&CurrentLight==Light.Green)return !docked||!hidden||expanded;return expanded;}
+        void ScheduleIdle(int delay){idleTimer.Stop();if(pinned||dragging||menuOpen||!NeedsIdleWork())return;idleTimer.Interval=delay;idleTimer.Start();}
+        void IdleTick(){
+            idleTimer.Stop();
+            // Pointer, menu, drag and pin events reschedule; nothing polls meanwhile.
+            if(pinned||dragging||menuOpen||MouseOverBar())return;
+            if(autoHide&&CurrentLight==Light.Green){docked=hidden=true;SetExpandedFlag(false);Retarget(false);}
+            else SetExpanded(false,false);
+        }
+        Rectangle Area(){return Screen.FromPoint(new Point(anchor.X+compactWidth/2,anchor.Y+barHeight/2)).WorkingArea;}
+        // Nearest side of the monitor that contains the user's position (work area,
+        // so a side taskbar is respected and the notch never lands on another monitor).
+        internal static bool NearestRight(Rectangle area,int anchorX,int compact){int c=anchorX+compact/2;return area.Right-c<c-area.Left;}
+        internal static int DockedX(Rectangle area,bool right,int width){return right?area.Right-width:area.Left;}
+        Geometry Target(out bool ledRight){
+            Rectangle area=Area();int full=Math.Min(expandedWidth,area.Width);
+            if(docked){
+                ledRight=NearestRight(area,anchor.X,compactWidth);
+                if(hidden&&!expanded)return new Geometry{X=DockedX(area,ledRight,notchDepth),W=notchDepth,N=1F};
+                int w=expanded?full:compactWidth;return new Geometry{X=DockedX(area,ledRight,w),W=w};
+            }
+            ledRight=anchor.X+expandedWidth>area.Right;
+            int width=expanded?full:compactWidth,x=ledRight?anchor.X+compactWidth-width:anchor.X;
+            return new Geometry{X=Math.Max(area.Left,Math.Min(area.Right-width,x)),W=width};
+        }
+        void Retarget(bool immediate){
+            bool ledRight;Geometry target=Target(out ledRight);
+            if(immediate||!IsHandleCreated||!Visible){StopTween();expandLeft=ledRight;Apply(target);return;}
+            if(tweening?to.Same(target):current.Same(target)){if(!tweening&&expandLeft!=ledRight){expandLeft=ledRight;Render();}return;}
+            expandLeft=ledRight;from=current;to=target;tweenStart=System.Diagnostics.Stopwatch.GetTimestamp();
+            // About 180 ms; the longer trip from the user's position to the edge takes 220 ms.
+            tweenMs=Math.Abs(from.X-to.X)>compactWidth*2&&Math.Max(from.W,to.W)<=compactWidth?220:180;
+            tweening=true;animation.Start();
+        }
+        void Tick(){double t=(System.Diagnostics.Stopwatch.GetTimestamp()-tweenStart)*1000.0/System.Diagnostics.Stopwatch.Frequency/tweenMs;Step(Math.Max(0,Math.Min(1,t)));}
+        void Step(double t){
+            double e=1-Math.Pow(1-t,3);
+            var g=new Geometry{X=(int)Math.Round(from.X+(to.X-from.X)*e),W=(int)Math.Round(from.W+(to.W-from.W)*e),N=(float)(from.N+(to.N-from.N)*e)};
+            if(t>=1){StopTween();g=to;}
+            Apply(g);
+        }
+        void StopTween(){tweening=false;animation.Stop();}
+        void Apply(Geometry g){
+            current=g;currentWidth=g.W;notch=g.N;location=new Point(g.X,anchor.Y);
             if(!IsHandleCreated){Bounds=LayeredBounds;return;}
             Render();
         }
         // Content stays fixed relative to the LED while the capsule opens.
-        int ContentX{get{return expandLeft?currentWidth-expandedWidth+Theme.S(12):compactWidth-Theme.S(4);}}
-        internal Rectangle AutomaticBounds{get{return new Rectangle(ContentX+Theme.S(292),(barHeight-Theme.S(20))/2,Theme.S(50),Theme.S(20));}}
-        internal Rectangle PinBounds{get{return new Rectangle(ContentX+Theme.S(348),(barHeight-Theme.S(26))/2,Theme.S(26),Theme.S(26));}}
+        int ContentX{get{return expandLeft?currentWidth-expandedWidth+Theme.S(10):compactWidth-Theme.S(2);}}
+        internal Rectangle AutomaticBounds{get{return new Rectangle(ContentX+Theme.S(286),(barHeight-Theme.S(18))/2,Theme.S(46),Theme.S(18));}}
+        internal Rectangle PinBounds{get{return new Rectangle(ContentX+Theme.S(338),(barHeight-Theme.S(22))/2,Theme.S(22),Theme.S(22));}}
         int HitControl(Point p){if(currentWidth<expandedWidth-Theme.S(5))return 0;Rectangle a=AutomaticBounds;a.Inflate(Theme.S(3),Theme.S(4));if(a.Contains(p))return 1;if(PinBounds.Contains(p))return 2;return 0;}
         string TooltipText(){
             if(hoverControl==1)return automatic?"Login automático activado (AUTO).\nClic para pasar a manual: AutoNauta vigila, pero no inicia sesión.":"Login manual (MAN): AutoNauta vigila, pero no inicia sesión.\nClic para activar el login automático.";
@@ -537,31 +765,49 @@ namespace NautaReconnect
             Draw(g,currentWidth,barHeight);g.Flush(FlushIntention.Sync);
             var destination=new POINT{X=location.X,Y=location.Y};var size=new SIZE{CX=currentWidth,CY=barHeight};var source=new POINT();
             var blend=new BLENDFUNCTION{BlendOp=0,BlendFlags=0,SourceConstantAlpha=255,AlphaFormat=1};
-            UpdateLayeredWindow(Handle,IntPtr.Zero,ref destination,ref size,memoryDc,ref source,0,ref blend,2);
+            LastLayerError=UpdateLayeredWindow(Handle,IntPtr.Zero,ref destination,ref size,memoryDc,ref source,0,ref blend,2)?0:Marshal.GetLastWin32Error();
+            // WinForms does not always see moves made by UpdateLayeredWindow; refresh its cached bounds.
+            if(Bounds!=LayeredBounds)UpdateBounds();
             RenderCount++;
         }
         void Draw(Graphics g,int w,int h){
             g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=TextRenderingHint.AntiAliasGridFit;
-            using(GraphicsPath capsule=Theme.Rounded(new RectangleF(.5F,.5F,w-1F,h-1F),(h-1F)/2F)){
+            // While docking, the body narrows, extends past the screen edge (flat on
+            // that side) and its inner end becomes a short rounded drop.
+            // At the end it is a soft "D": flat against the edge, rounded toward the screen.
+            float n=notch,bodyH=(h-1F)-n*((h-1F)-notchHeight),top=(h-bodyH)/2F,ext=n*notchDepth;
+            RectangleF body=n<=0F?new RectangleF(.5F,.5F,w-1F,h-1F):(expandLeft?new RectangleF(.5F,top,w-1F+ext,bodyH):new RectangleF(.5F-ext,top,w-1F+ext,bodyH));
+            float radius=Math.Min(bodyH,body.Width)/2F*(1F-n)+Math.Min(notchDepth,bodyH/2F)*n;
+            using(GraphicsPath capsule=Theme.Rounded(body,radius)){
                 using(Brush fill=new SolidBrush(Palette.Capsule))g.FillPath(fill,capsule);
                 using(Pen border=new Pen(Palette.CapsuleBorder,Math.Max(1F,Theme.F(1F))))g.DrawPath(border,capsule);
-                Color led=Palette.ForLight(CurrentLight);float lx=expandLeft?w-compactWidth/2F:compactWidth/2F,cy=h/2F,halo=Theme.F(18F),dot=Theme.F(10F);
-                using(Brush b=new SolidBrush(Color.FromArgb(56,led)))g.FillEllipse(b,lx-halo/2,cy-halo/2,halo,halo);
-                using(Brush b=new SolidBrush(led))g.FillEllipse(b,lx-dot/2,cy-dot/2,dot,dot);
-                if(w<compactWidth+Theme.S(24))return;
+                Color led=Palette.ForLight(CurrentLight);float side=Math.Min(w,compactWidth)/2F,lx=expandLeft?w-side:side,cy=h/2F,halo=Theme.F(16F),dot=Theme.F(10F),shown=1F-n;
+                if(shown>.01F){
+                    using(Brush b=new SolidBrush(Color.FromArgb((int)(56*shown),led)))g.FillEllipse(b,lx-halo/2,cy-halo/2,halo,halo);
+                    using(Brush b=new SolidBrush(Color.FromArgb((int)(255*shown),led)))g.FillEllipse(b,lx-dot/2,cy-dot/2,dot,dot);
+                }
+                if(n>.01F){
+                    // Notch: a short vertical bead of the status color inside the drop.
+                    float bw=Theme.F(2.5F),bh=Theme.F(12F),bx=w/2F;
+                    g.SetClip(capsule);
+                    using(Brush b=new SolidBrush(Color.FromArgb((int)(40*n),led)))g.FillEllipse(b,bx-bw*1.4F,cy-bh*.75F,bw*2.8F,bh*1.5F);
+                    using(GraphicsPath bead=Theme.Rounded(new RectangleF(bx-bw/2F,cy-bh/2F,bw,bh),bw/2F))using(Brush b=new SolidBrush(Color.FromArgb((int)(255*n),led)))g.FillPath(b,bead);
+                    g.ResetClip();
+                }
+                if(w<compactWidth+Theme.S(24)||n>.3F)return;
                 g.SetClip(capsule);g.SetClip(expandLeft?new Rectangle(0,0,w-compactWidth+Theme.S(6),h):new Rectangle(compactWidth-Theme.S(6),0,w-compactWidth+Theme.S(6),h),CombineMode.Intersect);
             }
-            // Fixed columns: time 112, download 88, upload 88, AUTO/MAN 50 and pin 26.
+            // Fixed columns: time 108, download 88, upload 88, AUTO/MAN 46 and pin 22.
             int x=ContentX;float cyf=h/2F;
             using(Pen icon=Glyphs.Stroke(Palette.Secondary)){
                 Glyphs.Clock(g,icon,x+Theme.F(7F),cyf,Theme.F(12F));
-                Glyphs.Arrow(g,icon,x+Theme.S(112)+Theme.F(5F),cyf,Theme.F(11F),true);
-                Glyphs.Arrow(g,icon,x+Theme.S(200)+Theme.F(5F),cyf,Theme.F(11F),false);
+                Glyphs.Arrow(g,icon,x+Theme.S(108)+Theme.F(5F),cyf,Theme.F(11F),true);
+                Glyphs.Arrow(g,icon,x+Theme.S(196)+Theme.F(5F),cyf,Theme.F(11F),false);
             }
             using(Brush primary=new SolidBrush(Palette.Text))using(Brush secondary=new SolidBrush(Palette.Secondary)){
-                g.DrawString(cachedTime,timeKnown?Theme.IndicatorStrong:Theme.IndicatorText,timeKnown?primary:secondary,new RectangleF(x+Theme.S(18),0,Theme.S(90),h),leftText);
-                g.DrawString(cachedDownload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(126),0,Theme.S(70),h),leftText);
-                g.DrawString(cachedUpload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(214),0,Theme.S(70),h),leftText);
+                g.DrawString(cachedTime,timeKnown?Theme.IndicatorStrong:Theme.IndicatorText,timeKnown?primary:secondary,new RectangleF(x+Theme.S(18),0,Theme.S(86),h),leftText);
+                g.DrawString(cachedDownload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(122),0,Theme.S(70),h),leftText);
+                g.DrawString(cachedUpload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(210),0,Theme.S(70),h),leftText);
             }
             Rectangle auto=AutomaticBounds;bool hoverAuto=hoverControl==1;
             using(GraphicsPath pill=Theme.Rounded(new RectangleF(auto.X+.5F,auto.Y+.5F,auto.Width-1F,auto.Height-1F),(auto.Height-1F)/2F)){
@@ -572,11 +818,14 @@ namespace NautaReconnect
             Rectangle pin=PinBounds;
             if(hoverControl==2)using(Brush b=new SolidBrush(Palette.Hover))g.FillEllipse(b,pin);
             Color pinColor=pinned?Palette.Accent:(hoverControl==2?Palette.Text:Palette.Secondary);
-            using(Pen p=Glyphs.Stroke(pinColor))using(Brush b=pinned?new SolidBrush(pinColor):null)Glyphs.Pin(g,p,b,pin.X+pin.Width/2F,pin.Y+pin.Height/2F,Theme.F(16F));
+            using(Pen p=Glyphs.Stroke(pinColor))using(Brush b=pinned?new SolidBrush(pinColor):null)Glyphs.Pin(g,p,b,pin.X+pin.Width/2F,pin.Y+pin.Height/2F,Theme.F(15F));
         }
         internal int AlphaAt(int x,int y){return surface==null?0:surface.GetPixel(x,y).A;}
         internal void SaveSnapshot(string path){if(surface==null)Render();using(Bitmap copy=surface.Clone(new Rectangle(0,0,currentWidth,barHeight),PixelFormat.Format32bppArgb))copy.Save(path,ImageFormat.Png);}
-        protected override void Dispose(bool disposing) {if(disposing){animation.Stop();leaveTimer.Stop();tooltip.Dispose();animation.Dispose();leaveTimer.Dispose();leftText.Dispose();centerText.Dispose();} ReleaseSurface(disposing); base.Dispose(disposing);}
+        protected override void Dispose(bool disposing) {
+            if(disposing){animation.Stop();idleTimer.Stop();contextMenu.Opening-=MenuOpening;contextMenu.Closed-=MenuClosed;tooltip.Dispose();animation.Dispose();idleTimer.Dispose();leftText.Dispose();centerText.Dispose();}
+            ReleaseSurface(disposing); base.Dispose(disposing);
+        }
 
         [StructLayout(LayoutKind.Sequential)] struct POINT{public int X,Y;}
         [StructLayout(LayoutKind.Sequential)] struct SIZE{public int CX,CY;}

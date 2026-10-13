@@ -1,4 +1,4 @@
-AUTONAUTA 2.2.2 — BETA PARA WINDOWS X64
+AUTONAUTA 2.3.0 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -23,7 +23,10 @@ Amarillo: reconexión, espera de Internet o acción pendiente.
 Rojo: error del portal, de la cuenta o del acceso.
 Gris: pausa o espera de confirmación.
 
-Pasa el mouse sobre el LED para ver el tiempo restante y las velocidades.
+En verde, el LED se esconde en el borde lateral más cercano y deja una
+pequeña muesca. Pasa el mouse por ella para ver el tiempo y las velocidades;
+al retirar el mouse se esconde de nuevo. En amarillo, rojo o gris vuelve
+el LED completo a la posición donde lo dejaste.
 La chincheta mantiene la barra abierta. Arrastra el LED para moverlo.
 Doble clic abre la ventana. Si necesitas restaurar el indicador, haz clic
 derecho en el icono de AutoNauta junto al reloj y elige Recuperar LED.

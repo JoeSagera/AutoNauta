@@ -32,6 +32,8 @@ Cuando la pantalla es más baja que el contenido, la ventana se desplaza vertica
 
 ## Indicador flotante
 
+> **Actualización (muesca lateral, sobre 2.2.2):** la cápsula pasa a 32×26 px, la barra a 400×26 px y en verde el indicador se esconde en el lateral. Medidas, comportamiento y validación: `LED-LATERAL.md`. Los puntos siguientes describen la versión 2.2.
+
 - **Reposo:** cápsula ovalada de 46×30 px a 100 % (antes, 52×42), con el LED y un halo. No muestra texto.
 - **Expandida (426 px):** reloj y tiempo, ↓ bajada, ↑ subida, pastilla **AUTO**/**MAN** y chincheta. Las columnas tienen ancho fijo para que las cifras no hagan saltar la barra. Sin tiempo muestra «No disponible» en gris.
 - **Bordes suavizados:** la ventana es *layered* (`WS_EX_LAYERED` + `UpdateLayeredWindow`). Se dibuja en un único DIB premultiplicado del tamaño expandido, creado una vez y reutilizado en cada cuadro. Antes, una región GDI recortaba la ventana con bordes dentados.

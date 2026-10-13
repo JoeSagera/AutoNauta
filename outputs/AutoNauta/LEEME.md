@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.2.2.0**, con reconexión sin depender del popup y contador de Nauta Hogar corregido. La cuenta existente se conserva. La revisión de la interfaz y recursos 2.2 está en `REVISION-DISENO-2.2.md`.
+Entrega actual: **2.3.0.0**, con LED lateral discreto y cápsula más pequeña. Conserva la reconexión sin depender del popup y el contador de Nauta Hogar corregidos en 2.2.2. La cuenta existente se conserva. La revisión independiente de esta entrega está en `REVISION-LED-LATERAL-2.3.md`.
 
 ## Empezar
 
@@ -22,6 +22,12 @@ Arrastra el LED o el fondo de la barra para moverlo. Doble clic abre la ventana 
 - Amarillo: reconectando Nauta o esperando Internet / una acción manual.
 - Rojo: error del portal, cuenta, certificado o acceso.
 - Gris: pausado o esperando confirmación de la conexión.
+
+### Muesca lateral con Internet
+
+En verde, si no lo tocas, el LED se esconde medio segundo después en el **borde izquierdo o derecho más cercano** del monitor donde lo dejaste. Queda a la misma altura, como una pequeña muesca con una gota verde. Lleva el mouse a esa muesca para ver la barra; se abre hacia el centro de la pantalla. Al retirar el mouse espera medio segundo y vuelve a esconderse.
+
+En amarillo, rojo o gris el LED vuelve en el acto a su sitio habitual. Con la chincheta, con el menú abierto o mientras lo arrastras, no se esconde. Para cambiar el borde o la altura, arrastra la barra: el lateral se elige a partir de la nueva posición. **Recuperar LED** lo muestra unos segundos sin abrir la ventana ni quitar el foco al juego o programa activo.
 
 ## Login automático independiente
 

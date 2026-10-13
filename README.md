@@ -91,3 +91,7 @@ La página real `/web/online.do` usa un botón `input` para cerrar sesión y un 
 Para una sesión iniciada manualmente, el menú del LED incluye **Vincular contador del navegador…**: importa el HTML guardado desde la página conectada, exige la misma cuenta y confirma el tiempo con Nauta antes de guardar los datos cifrados. No ejecuta JavaScript ni inicia/cierra una sesión. Los HTML personales permanecen fuera del repositorio.
 
 Pasaron 76 pruebas, incluida una caída sin redirección con login, recuperación y contador; también se comprueba que una caída de VPN con Internet físico no envía login. Validación y límites: `docs/RECONEXION-2.2.2.md`. La recuperación durante la siguiente caída real sigue pendiente de observar.
+
+## LED lateral discreto (2.3.0)
+
+En verde y sin interacción, el indicador se esconde en el lateral más cercano de su monitor como una muesca de 7×22 px y revela la barra al pasar el mouse. En amarillo, rojo o gris vuelve en el acto a la posición del usuario. La cápsula pasa a 32×26 px y la barra a 400×26 px. Comportamiento, medidas, validación y pendientes: `outputs/AutoNauta/LED-LATERAL.md` y `outputs/AutoNauta/diseno-lateral/`.
