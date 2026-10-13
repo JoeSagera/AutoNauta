@@ -1,4 +1,4 @@
-param([string]$Version='2.3.0')
+param([string]$Version='2.3.1')
 $ErrorActionPreference='Stop'
 if($Version -notmatch '^\d+\.\d+\.\d+$'){throw 'La versión debe tener el formato mayor.menor.parche.'}
 $taskExe=Join-Path $PSScriptRoot 'outputs\AutoNauta\AutoNauta.exe'

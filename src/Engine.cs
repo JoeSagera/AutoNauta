@@ -16,7 +16,8 @@ namespace NautaReconnect {
         readonly RateMonitor rates=new RateMonitor();
         readonly Timer rateTimer;
         int sampling;
-        int shutdownStarted,wakeDisposed,accountCheckRequested;
+        int shutdownStarted,wakeDisposed,accountCheckRequested,networkCheckRequested;
+        long recoveryUntil;
         readonly object ratesGate=new object();
         DateTime nextAccountCheck=DateTime.MinValue;
         bool accountQueryBlocked;
@@ -37,7 +38,17 @@ namespace NautaReconnect {
             Current=new Status(Light.Gray,"Pausado",preview?"Vista de prueba; no se realizan conexiones.":"Configura tu cuenta y pulsa Iniciar.");
             if(!preview){rates.TopologyChanged+=NetworkChanged;worker=new Thread(Loop);worker.IsBackground=true;worker.Start();rateTimer=new Timer(SampleRates,null,0,1000);}
         }
-        void NetworkChanged(object sender,EventArgs args){Networks.Addresses.Clear();Signal();}
+        void NetworkChanged(object sender,EventArgs args){NotifyNetworkChange();}
+        internal void NotifyNetworkChange(){
+            if(closing)return;
+            Networks.Addresses.Clear();
+            lock(tokenGate){
+                if(closing||!running)return;
+                Interlocked.Exchange(ref networkCheckRequested,1);
+                if(cycle!=null)cycle.Cancel();
+            }
+            Signal();
+        }
         void Signal(){if(closing)return;try{wake.Set();}catch(ObjectDisposedException){}}
         void ReleaseWake(){if(Interlocked.Exchange(ref wakeDisposed,1)==0)wake.Dispose();}
         void SampleRates(object state){
@@ -120,16 +131,27 @@ namespace NautaReconnect {
                     if(!running){
                         Set(Light.Gray,"Pausado","No se hacen conexiones. Una sesión Nauta que ya estaba abierta sigue activa.");wake.WaitOne();continue;}
                     using(var token=new CancellationTokenSource()){
-                        lock(tokenGate){cycle=token;if(!running||closing)token.Cancel();}
+                        bool networkChanged;
+                        lock(tokenGate){cycle=token;networkChanged=Interlocked.Exchange(ref networkCheckRequested,0)!=0;if(!running||closing)token.Cancel();}
                         lock(cycleGate){
-                        try{token.Token.ThrowIfCancellationRequested();Cycle(token.Token);}catch(OperationCanceledException){}
+                        try{
+                            token.Token.ThrowIfCancellationRequested();
+                            if(networkChanged){
+                                recoveryUntil=System.Diagnostics.Stopwatch.GetTimestamp()+20L*System.Diagnostics.Stopwatch.Frequency;
+                                retry.Failures=0;
+                                Set(Light.Yellow,"Comprobando cambio de red","La red cambió. Se verifica Internet sin esperar el intervalo habitual.");
+                            }
+                            Cycle(token.Token);
+                        }catch(OperationCanceledException){}
                         catch(NetworkFailure e){if(running){if(e.Blocked)Set(Light.Red,"Acceso al portal bloqueado","Windows o el software de red rechazó el acceso por el router. Revisa el diagnóstico y los permisos de acceso a la red local.");else if(e.Certificate){retry.AuthBlocked=true;Set(Light.Red,"Certificado HTTPS no válido","No se enviaron credenciales. Revisa fecha de Windows y certificado del portal; no se desactiva su validación.");}else if(retry.AuthBlocked)Set(Light.Red,"Autenticación detenida","Tres intentos no confirmados. Revisa el portal y guarda de nuevo la cuenta para permitir otro intento.");else Set(Light.Gray,"Esperando portal","Nauta todavía no responde. Se reintentará automáticamente.");}}
                         catch(Exception e){if(running)Set(Light.Red,"No se pudo continuar",SafeError(e));}
                         finally{lock(tokenGate){cycle=null;}}
                         }
                     }
                     if(!running||closing)continue;
-                    wake.WaitOne(retry.DelaySeconds(Settings.IntervalSeconds)*1000);
+                    int delay=retry.DelaySeconds(Settings.IntervalSeconds)*1000;
+                    if(retry.Failures==1||(Current.Light!=Light.Green&&System.Diagnostics.Stopwatch.GetTimestamp()<recoveryUntil))delay=Math.Min(delay,2000);
+                    wake.WaitOne(delay);
                 }
             }finally{if(closing)ReleaseWake();}
         }
@@ -138,7 +160,15 @@ namespace NautaReconnect {
             return "Comprueba la conexión y la configuración. El detalle técnico se omite para no registrar datos de sesión.";
         }
         void Cycle(CancellationToken token){
+            token.ThrowIfCancellationRequested();
+            if(!network.PhysicalReady()){
+                token.ThrowIfCancellationRequested();
+                retry.Failures=0;
+                Set(Light.Yellow,"Sin conexión de red","No hay un enlace Ethernet o Wi-Fi con IPv4 y puerta de enlace disponibles. Se espera al cable, Wi-Fi o configuración de red; no se envía login.");
+                return;
+            }
             var connection=network.Internet(token);
+            token.ThrowIfCancellationRequested();
             if(connection.Connected){retry.Healthy();Set(Light.Green,"Internet conectado","Conexión comprobada a través de "+connection.Interface.Name+". El programa permanece esperando.");RefreshAccount(token);return;}
             if(!retry.ConfirmFailure()){Set(Light.Gray,"Verificando caída","Primer fallo de conectividad; esperando una segunda comprobación.");return;}
             token.ThrowIfCancellationRequested();

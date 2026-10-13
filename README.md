@@ -95,3 +95,7 @@ Pasaron 76 pruebas, incluida una caída sin redirección con login, recuperació
 ## LED lateral discreto (2.3.0)
 
 En verde y sin interacción, el indicador se esconde en el lateral más cercano de su monitor como una muesca de 7×22 px y revela la barra al pasar el mouse. En amarillo, rojo o gris vuelve en el acto a la posición del usuario. La cápsula pasa a 32×26 px y la barra a 400×26 px. Comportamiento, medidas, validación y pendientes: `outputs/AutoNauta/LED-LATERAL.md` y `outputs/AutoNauta/diseno-lateral/`.
+
+## Respuesta al cable y cambios de red (2.3.1)
+
+Los cambios de red interrumpen la petición anterior y despiertan la vigilancia. Si no hay enlace físico disponible, el indicador muestra «Sin conexión de red» sin esperar una sonda de Internet. Al recuperar el enlace, se comprueba enseguida y se hacen reintentos breves; el verde requiere Internet confirmado. En conexión estable se mantiene el intervalo normal. Pasaron 83 pruebas. Evidencia, consumo y límites: `docs/LATENCIA-2.3.1.md`.

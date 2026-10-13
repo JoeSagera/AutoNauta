@@ -26,6 +26,17 @@ namespace NautaReconnect {
     }
     public static class Networks {
         public static readonly AddressCache Addresses=new AddressCache(ResolveFresh,RateMonitor.NowSeconds);
+        public static bool PhysicalReady(){
+            foreach(var nic in NetworkInterface.GetAllNetworkInterfaces()){
+                if(nic.OperationalStatus!=OperationalStatus.Up||!RateMonitor.IsPhysical(nic.NetworkInterfaceType,nic.Description))continue;
+                try{
+                    var ip=nic.GetIPProperties();
+                    if(ip.UnicastAddresses.Any(x=>x.Address.AddressFamily==AddressFamily.InterNetwork&&!x.Address.Equals(IPAddress.Any)&&!x.Address.ToString().StartsWith("169.254."))&&
+                       ip.GatewayAddresses.Any(x=>x.Address.AddressFamily==AddressFamily.InterNetwork&&!x.Address.Equals(IPAddress.Any)))return true;
+                }catch(NetworkInformationException){/* An adapter can disappear while Windows reports a topology change. */}
+            }
+            return false;
+        }
         static bool Tunnel(NetworkInterface nic) {
             string s=(nic.Name+" "+nic.Description).ToLowerInvariant();
             return s.Contains("wireguard")||s.Contains("wintun")||nic.NetworkInterfaceType==NetworkInterfaceType.Tunnel;

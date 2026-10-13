@@ -3,6 +3,7 @@ using System.Net;
 using System.Threading;
 namespace NautaReconnect {
     internal sealed class EngineNetwork {
+        internal Func<bool> PhysicalReady=Networks.PhysicalReady;
         internal Func<CancellationToken,ConnectionCheck> Internet=token=>Connectivity.CheckCurrent(token);
         internal Func<NetworkLink> Router=Networks.Router;
         internal Func<NetworkLink,CancellationToken,CaptiveState> Captive=CaptiveProbe.Check;

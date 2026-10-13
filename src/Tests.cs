@@ -35,21 +35,92 @@ namespace NautaReconnect {
             internal readonly string DirectoryPath=Path.Combine(Path.GetTempPath(),"AutoNautaReconnect-"+Guid.NewGuid().ToString("N"));
             internal readonly FakePortal Portal=new FakePortal();
             internal readonly Engine Engine;
-            internal bool Internet,RouterInternet;
+            internal bool Internet,RouterInternet,PhysicalReady=true;
             internal CaptiveState Captive=CaptiveState.Unknown;
-            internal int DirectChecks;
+            internal int DirectChecks,InternetChecks;
             internal Scenario(){
                 var link=new NetworkLink{Name="Router de prueba",Index=10,LocalIp=IPAddress.Parse("192.0.2.20")};
                 var store=new SettingsStore(DirectoryPath);store.Save(new AppSettings{Username="test@nauta.com.cu",ProtectedPassword=SettingsStore.Protect("fake-password")});
                 Engine=new Engine(store,true,new EngineNetwork{
-                    Internet=token=>new ConnectionCheck{Connected=Internet,Interface=link},Router=()=>link,Captive=(router,token)=>Captive,
+                    PhysicalReady=()=>PhysicalReady,
+                    Internet=token=>{InternetChecks++;return new ConnectionCheck{Connected=Internet,Interface=link};},Router=()=>link,Captive=(router,token)=>Captive,
                     RouterInternet=(router,token)=>{DirectChecks++;return RouterInternet;},PortalAddress=(router,cached,token)=>IPAddress.Parse("192.0.2.30"),Client=(router,address)=>Portal});
                 Engine.Start();
             }
             internal void Cycle(){typeof(Engine).GetMethod("Cycle",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(Engine,new object[]{CancellationToken.None});}
             public void Dispose(){Engine.Shutdown();foreach(string file in Directory.GetFiles(DirectoryPath))File.Delete(file);Directory.Delete(DirectoryPath);}
         }
+        sealed class WorkerScenario:IDisposable{
+            readonly string path=Path.Combine(Path.GetTempPath(),"AutoNautaNetworkEvents-"+Guid.NewGuid().ToString("N"));
+            internal readonly Engine Engine;
+            internal volatile bool Physical=true,Connected=true;
+            internal int InternetChecks;
+            internal Func<CancellationToken,bool> OnInternet;
+            internal WorkerScenario(){
+                var link=new NetworkLink{Name="Red de prueba",Index=10,LocalIp=IPAddress.Parse("192.0.2.20")};
+                Engine=new Engine(new SettingsStore(path),false,new EngineNetwork{
+                    PhysicalReady=()=>Physical,
+                    Internet=token=>{Interlocked.Increment(ref InternetChecks);bool online=OnInternet==null?Connected:OnInternet(token);return new ConnectionCheck{Connected=online,Interface=link};},
+                    Router=()=>{throw new Exception("No debe consultar el portal en esta prueba");}
+                });
+            }
+            internal void WaitFor(Func<bool> condition,int milliseconds=2000){
+                var watch=System.Diagnostics.Stopwatch.StartNew();while(!condition()&&watch.ElapsedMilliseconds<milliseconds)Thread.Sleep(10);
+                Assert(condition(),"No respondió a tiempo a la condición de red");
+            }
+            internal void WaitIdle(){WaitFor(()=>typeof(Engine).GetField("cycle",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(Engine)==null);}
+            public void Dispose(){Engine.Shutdown();foreach(string file in Directory.GetFiles(path))File.Delete(file);Directory.Delete(path);}
+        }
         public static int Run() {
+            Check("Sin enlace físico no espera DNS ni envía login aunque la VPN figure activa",delegate{
+                using(var test=new Scenario()){
+                    test.PhysicalReady=false;test.Internet=true;test.Cycle();
+                    Assert(test.Engine.Current.Light==Light.Yellow&&test.Engine.Current.Message=="Sin conexión de red"&&test.InternetChecks==0&&test.DirectChecks==0&&test.Portal.Logins==0&&test.Portal.TimeQueries==0,"Espera sondas o confunde la VPN con el cable conectado");
+                    test.PhysicalReady=true;test.Internet=false;test.Cycle();test.PhysicalReady=false;test.Cycle();
+                    var retry=(RetryPolicy)typeof(Engine).GetField("retry",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(test.Engine);
+                    Assert(retry.Failures==0&&test.InternetChecks==1,"Un enlace ausente deja pendiente para siempre la segunda comprobación rápida");
+                }
+            });
+            Check("Cambio de red cancela petición antigua y no publica su verde tardío",delegate{
+                using(var entered=new ManualResetEvent(false))using(var canceled=new ManualResetEvent(false))using(var test=new WorkerScenario()){
+                    int greens=0;test.Engine.StatusChanged+=delegate{if(test.Engine.Current.Light==Light.Green)Interlocked.Increment(ref greens);};
+                    test.OnInternet=token=>{entered.Set();token.WaitHandle.WaitOne(5000);if(token.IsCancellationRequested)canceled.Set();return true;};
+                    test.Engine.Start();Assert(entered.WaitOne(2000),"No inició la petición simulada");test.Physical=false;
+                    var watch=System.Diagnostics.Stopwatch.StartNew();test.Engine.NotifyNetworkChange();test.WaitFor(()=>test.Engine.Current.Message=="Sin conexión de red");
+                    Assert(canceled.WaitOne(0)&&greens==0&&watch.ElapsedMilliseconds<1500,"Espera el timeout antiguo o deja verde después de quitar el enlace");
+                }
+            });
+            Check("Reconectar enlace despierta vigilancia sin esperar quince segundos",delegate{
+                using(var test=new WorkerScenario()){
+                    test.Engine.Start();test.WaitFor(()=>test.Engine.Current.Light==Light.Green);test.WaitIdle();test.Physical=false;test.Engine.NotifyNetworkChange();test.WaitFor(()=>test.Engine.Current.Message=="Sin conexión de red");test.WaitIdle();
+                    test.Physical=true;var watch=System.Diagnostics.Stopwatch.StartNew();test.Engine.NotifyNetworkChange();test.WaitFor(()=>test.Engine.Current.Light==Light.Green);
+                    Assert(watch.ElapsedMilliseconds<1500&&test.InternetChecks>=2,"Reconexionar sigue esperando el intervalo normal");
+                }
+            });
+            Check("Recuperación breve reintenta en dos segundos sin necesitar otro evento",delegate{
+                using(var test=new WorkerScenario()){
+                    test.Engine.Start();test.WaitFor(()=>test.Engine.Current.Light==Light.Green);test.WaitIdle();test.Connected=false;test.Engine.NotifyNetworkChange();test.WaitFor(()=>test.Engine.Current.Message=="Verificando caída");test.WaitIdle();
+                    test.Connected=true;var watch=System.Diagnostics.Stopwatch.StartNew();test.WaitFor(()=>test.Engine.Current.Light==Light.Green,4000);
+                    Assert(watch.ElapsedMilliseconds<3500&&test.InternetChecks>=3,"La red lista después del evento espera quince segundos más");
+                }
+            });
+            Check("Cambio de red no inicia vigilancia pausada",delegate{
+                using(var test=new WorkerScenario()){
+                    test.Engine.NotifyNetworkChange();Thread.Sleep(100);
+                    Assert(!test.Engine.Running&&test.InternetChecks==0&&test.Engine.Current.Light==Light.Gray,"Un cambio de red enciende la vigilancia pausada");
+                }
+            });
+            Check("Cambio de cable conserva bloqueo y límite de autenticación",delegate{
+                using(var test=new WorkerScenario()){
+                    test.Engine.Start();test.WaitFor(()=>test.Engine.Current.Light==Light.Green);test.WaitIdle();
+                    var retry=(RetryPolicy)typeof(Engine).GetField("retry",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(test.Engine);var login=DateTime.UtcNow;
+                    retry.AuthBlocked=true;retry.AuthFailures=3;retry.LastLogin=login;test.Physical=false;test.Engine.NotifyNetworkChange();test.WaitFor(()=>test.Engine.Current.Message=="Sin conexión de red");
+                    Assert(retry.AuthBlocked&&retry.AuthFailures==3&&retry.LastLogin==login&&!retry.CanLogin(login),"Desenchufar el cable elimina protecciones de la cuenta");
+                }
+            });
+            Check("Motor cerrado ignora avisos de red tardíos",delegate{
+                using(var test=new WorkerScenario()){test.Engine.Shutdown();test.Engine.NotifyNetworkChange();Assert(!test.Engine.Running&&test.InternetChecks==0,"Un aviso tardío reactiva un motor cerrado");}
+            });
             Check("Contador Hogar conserva todo el contexto y el CSRF de online",delegate{
                 var session=NautaSession.Capture(PortalParser.Parse(LoginHtml("/LoginServlet"),Origin),new PageResponse{Uri=new Uri(Origin,"/web/online.do"),Body=OnlineHtml()},"test@nauta.com.cu");
                 Assert(session!=null&&session.Csrf=="online-csrf"&&session.Context.Count==6&&session.Context["ssid"]=="nauta_hogar"&&session.Context["loggerId"]=="logger test@nauta.com.cu"&&session.QueryFields().Count==10,"Pierde campos reales del contador o usa el CSRF anterior");

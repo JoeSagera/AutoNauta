@@ -104,3 +104,9 @@ Entrega de diseño sobre 2.2.2; detalles en `LED-LATERAL.md`.
 ### Integración independiente 2.3.0
 
 Codex compiló e instaló 2.3.0.0. Pasaron las 76 pruebas, las pruebas visuales a 100/150/200 % y una ejecución final a 150 %. El usuario confirmó muesca en verde, revelación con contador y acceso tras «Mostrar escritorio»: «Sí, todo funciona bien». Medición con vigilancia activa: aproximadamente 0,052 % de CPU total en una muestra de 60 s, con GDI y objetos de usuario estables. Evidencia, límites y revisión: `REVISION-LED-LATERAL-2.3.md`.
+
+## Respuesta a cambios de red — 2.3.1
+
+83 pruebas correctas, cero fallos; prueba visual a 150 % con salida 0 y 26 capturas. Instalación 2.3.1.0 conserva la configuración y el contador vinculado. Se cancelan ciclos anteriores ante un cambio de red y se comprueba primero el enlace físico, con reintentos breves durante recuperación. Muestra de consumo conectado: aproximadamente 0,049 % de CPU total, GDI y objetos de usuario estables. Tiempos de campo, evidencia y límites: `../../docs/LATENCIA-2.3.1.md`.
+
+El usuario confirmó desconexión casi instantánea y retorno a verde en aproximadamente 9 s con VPN, frente a 6/16 s antes del cambio. Los avisos de red del registro preceden al verde por aproximadamente 1–2 s; la contribución de Windows, enlace y VPN al tiempo total no se midió por separado.

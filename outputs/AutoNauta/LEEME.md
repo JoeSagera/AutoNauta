@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.3.0.0**, con LED lateral discreto y cápsula más pequeña. Conserva la reconexión sin depender del popup y el contador de Nauta Hogar corregidos en 2.2.2. La cuenta existente se conserva. La revisión independiente de esta entrega está en `REVISION-LED-LATERAL-2.3.md`.
+Entrega actual: **2.3.1.0**, con respuesta a cambios de cable/red, LED lateral discreto y cápsula más pequeña. Conserva la reconexión sin depender del popup y el contador de Nauta Hogar corregidos en 2.2.2. La cuenta existente se conserva. Detalles de respuesta y límites: `../../docs/LATENCIA-2.3.1.md`. Revisión del diseño: `REVISION-LED-LATERAL-2.3.md`.
 
 ## Empezar
 
