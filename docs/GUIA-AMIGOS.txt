@@ -1,4 +1,4 @@
-AUTONAUTA 2.4.1 — BETA PARA WINDOWS X64
+AUTONAUTA 2.4.2 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -30,6 +30,9 @@ el LED completo a la posición donde lo dejaste.
 La chincheta mantiene la barra abierta. Arrastra el LED para moverlo.
 Cuando está fijada y retiras el mouse, quedan solo LED, horas y velocidades;
 AUTO/MAN y la chincheta reaparecen al pasar por encima.
+El indicador recupera su prioridad cuando otra ventana lo tapa, sin quitarle
+el foco a la aplicación activa. En juegos, usa ventana sin bordes si el modo
+pantalla completa impide que Windows muestre el indicador encima.
 Doble clic abre la ventana. Si necesitas restaurar el indicador, haz clic
 derecho en el icono de AutoNauta junto al reloj y elige Recuperar LED.
 

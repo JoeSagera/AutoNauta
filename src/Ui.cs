@@ -279,6 +279,7 @@ namespace NautaReconnect
             Assert(indicator.Bounds == indicator.LayeredBounds,"La recuperación debe conservar la superficie del LED.");
             indicator.Hide();indicator.TopMost=false;IntPtr beforeRecovery=GetForegroundWindow();restoreIndicatorMenu.PerformClick();Application.DoEvents();
             Assert(indicator.Visible&&indicator.TopMost&&!main.Visible&&GetForegroundWindow()==beforeRecovery,"Recuperar LED restaura el indicador sin abrir la ventana ni tomar el foco.");
+            SmokeOverlayOrder();
             indicator.SetPinned(true);indicator.SetExpanded(true,true);indicator.WindowState=FormWindowState.Minimized;Application.DoEvents();
             Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Pinned&&indicator.Expanded&&indicator.CurrentWidth==indicator.InformationWidth&&indicator.Bounds==indicator.LayeredBounds,"Recuperar conserva la barra fijada informativa y su tamaño. Ventana="+indicator.Bounds+", superficie="+indicator.LayeredBounds+", ancho="+indicator.CurrentWidth);
             indicator.SetPinned(false);indicator.SetExpanded(false,true);indicator.Hide();ShowMain(false);Application.DoEvents();
@@ -373,6 +374,35 @@ namespace NautaReconnect
             indicator.MoveAnchor(location);indicator.ReadMetrics=CurrentMetrics;indicator.SetMetrics(CurrentMetrics());ApplyStatus(original);RefreshActions();indicator.SaveSnapshot(Path.Combine(folder,"ui-indicator.png"));
             menu.Show(main,new Point(Theme.S(40),Theme.S(40)));Application.DoEvents();Snapshot(menu,Path.Combine(folder,"ui-menu.png"));menu.Close();Application.DoEvents();
             indicator.CursorSource=delegate{return Cursor.Position;};
+        }
+        void SmokeOverlayOrder(){
+            Assert(indicator.OrderGuard!=null&&indicator.OrderGuard.Listening,"Vigilancia nativa de primer plano y orden registrada.");
+            indicator.OrderGuard.TestOwnWindows=true;
+            try{
+            using(var cover=new Form{Text="Vista previa de ventana superior",FormBorderStyle=FormBorderStyle.None,ShowInTaskbar=false,TopMost=true,StartPosition=FormStartPosition.Manual,Bounds=indicator.Bounds}){
+                cover.Show();Application.DoEvents();
+                indicator.OrderGuard.TestSettle();NativeSetWindowPos(cover.Handle,IntPtr.Zero,0,0,0,0,0x0001|0x0002|0x0010);
+                Assert(Above(cover.Handle,indicator.Handle),"La ventana de prueba debe cubrir el indicador antes de recuperarlo.");
+                Rectangle geometry=indicator.Bounds;Point anchor=indicator.AnchorLocation;IntPtr focus=GetForegroundWindow();int renders=indicator.RenderCount,reassertions=indicator.OrderGuard.Reassertions;
+                for(int i=0;i<100;i++)indicator.OrderGuard.Request();Application.DoEvents();
+                Assert(Above(indicator.Handle,cover.Handle)&&GetForegroundWindow()==focus,"El LED vuelve encima de otra ventana topmost sin cambiar el foco.");
+                Assert(indicator.OrderGuard.Reassertions==reassertions+1&&indicator.RenderCount==renders&&indicator.Bounds==geometry&&indicator.AnchorLocation==anchor,"Se agrupan eventos sin redibujar ni mover el indicador.");
+                NativeSetWindowPos(cover.Handle,IntPtr.Zero,0,0,0,0,0x0001|0x0002|0x0010);
+                Assert(Above(cover.Handle,indicator.Handle),"La ventana vuelve a cubrirlo durante el arranque.");
+                indicator.OrderGuard.TestSettle();
+                Assert(Above(indicator.Handle,cover.Handle)&&!indicator.OrderGuard.Pending&&GetForegroundWindow()==focus,"La comprobación diferida recupera el orden y se detiene sin tomar foco.");
+                indicator.Hide();indicator.OrderGuard.Request();Application.DoEvents();indicator.OrderGuard.TestSettle();
+                Assert(!indicator.Visible&&!indicator.OrderGuard.Pending,"La vigilancia no revela una ventana oculta.");
+                indicator.EnsureVisible(false);
+                using(var guard=new OverlayOrderGuard(cover,delegate{return false;})){
+                    Assert(guard.Listening,"La vigilancia temporal registra ambos eventos.");guard.Request();guard.Dispose();Application.DoEvents();guard.Request();
+                    Assert(!guard.Listening&&!guard.Pending,"Cerrar libera eventos y temporizador aunque haya una llamada encolada.");
+                }
+            }
+            }finally{indicator.OrderGuard.TestOwnWindows=false;}
+        }
+        static bool Above(IntPtr first,IntPtr second){
+            IntPtr next=first;for(int i=0;i<10000&&next!=IntPtr.Zero;i++){next=GetWindow(next,2);if(next==second)return true;}return false;
         }
         // Lateral docking in green: both sides, hover, delays, state changes during
         // the animation, pin, menu, drag, «Recuperar LED», Show Desktop and resources.
@@ -507,6 +537,8 @@ namespace NautaReconnect
         [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] static extern IntPtr GetWindowLongPtr(IntPtr window,int index);
         [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr window,int message,IntPtr wParam,IntPtr lParam);
         [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window,uint command);
+        [DllImport("user32.dll",EntryPoint="SetWindowPos")] static extern bool NativeSetWindowPos(IntPtr window,IntPtr after,int x,int y,int width,int height,uint flags);
         [DllImport("user32.dll")] static extern uint GetGuiResources(IntPtr process,uint flags);
         [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
     }
@@ -519,13 +551,15 @@ namespace NautaReconnect
     // and is redrawn only when something visible changes. Timers run only during
     // a transition or a pending delay.
     internal sealed class IndicatorForm : Form {
-        // 96-DPI units: capsule 32×26, bar 400×26, notch 7×22 visible.
+        // 96-DPI units: capsule 32×26, bar 356×26 (280 without controls), notch 7×22.
         readonly int compactWidth=Theme.S(32),expandedWidth=Theme.S(356),informationWidth=Theme.S(280),barHeight=Theme.S(26),notchDepth=Math.Max(5,Theme.S(7)),notchHeight=Theme.S(22);
         internal const int DockDelay=500,CollapseDelay=180,RevealDelay=2500;
         readonly ToolTip tooltip=new ToolTip();
         readonly System.Windows.Forms.Timer animation=new System.Windows.Forms.Timer{Interval=15};
         readonly System.Windows.Forms.Timer idleTimer=new System.Windows.Forms.Timer{Interval=DockDelay};
         readonly ContextMenuStrip contextMenu;
+        OverlayOrderGuard orderGuard;
+        internal OverlayOrderGuard OrderGuard{get{return orderGuard;}}
         readonly StringFormat leftText=new StringFormat(StringFormatFlags.NoWrap){LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter};
         readonly StringFormat centerText=new StringFormat(StringFormatFlags.NoWrap){Alignment=StringAlignment.Center,LineAlignment=StringAlignment.Center};
         // X, width and notch amount (0 capsule or bar, 1 notch). Height is constant,
@@ -623,16 +657,17 @@ namespace NautaReconnect
                 if(e.Button!=MouseButtons.Left)return;
                 if(pressedControl!=0){int action=pressedControl;pressedControl=0;if(HitControl(e.Location)==action){var handler=action==1?AutoLoginRequested:PinRequested;if(handler!=null)handler(this,EventArgs.Empty);}return;}
                 if(!dragging)return;dragging=false;Capture=false;if(moved&&MovedByUser!=null)MovedByUser(this,EventArgs.Empty);
+                if(orderGuard!=null)orderGuard.Request();
                 if(!MouseOverBar())ScheduleIdle(IdleDelay);
             };
             MouseDoubleClick += delegate(object sender,MouseEventArgs e) {if(e.Button == MouseButtons.Left && HitControl(e.Location)==0 && OpenMain != null) OpenMain(this,EventArgs.Empty);};
-            MouseCaptureChanged += delegate {if(!Capture&&dragging){dragging=false;if(!MouseOverBar())ScheduleIdle(IdleDelay);}};
+            MouseCaptureChanged += delegate {if(!Capture&&dragging){dragging=false;if(orderGuard!=null)orderGuard.Request();if(!MouseOverBar())ScheduleIdle(IdleDelay);}};
             UpdateTooltip();
         }
         void PointerEntered(){hovering=true;idleTimer.Stop();if(docked)hidden=false;SetExpandedFlag(true);Retarget(false);}
         void PointerLeft(){hovering=false;SetHover(0);if(pinned)Retarget(false);ScheduleIdle(IdleDelay);}
         void MenuOpening(object sender,System.ComponentModel.CancelEventArgs e){menuOpen=true;idleTimer.Stop();if(pinned)Retarget(false);}
-        void MenuClosed(object sender,ToolStripDropDownClosedEventArgs e){menuOpen=false;if(pinned)Retarget(false);if(!MouseOverBar())ScheduleIdle(IdleDelay);}
+        void MenuClosed(object sender,ToolStripDropDownClosedEventArgs e){menuOpen=false;if(pinned)Retarget(false);if(orderGuard!=null)orderGuard.Request();if(!MouseOverBar())ScheduleIdle(IdleDelay);}
         Point VisibleCapsuleLocation(){return new Point(expandLeft?location.X+currentWidth-compactWidth:location.X,location.Y);}
         // Show Desktop can minimize otherwise borderless forms. Restore on an
         // actual minimize event only; never poll or activate the foreground window.
@@ -654,8 +689,9 @@ namespace NautaReconnect
             base.SetBoundsCore(x,y,width,height,specified);
         }
         [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
-        protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);Retarget(true);}
-        protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)Render();}
+        protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);Retarget(true);orderGuard=new OverlayOrderGuard(this,delegate{return menuOpen||dragging;});}
+        protected override void OnHandleDestroyed(EventArgs e){if(orderGuard!=null){orderGuard.Dispose();orderGuard=null;}base.OnHandleDestroyed(e);}
+        protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible){Render();if(orderGuard!=null)orderGuard.Request();}}
         protected override void OnPaintBackground(PaintEventArgs e){}
         protected override void OnPaint(PaintEventArgs e){}
         protected override void OnResize(EventArgs e){
@@ -858,6 +894,7 @@ namespace NautaReconnect
         internal int AlphaAt(int x,int y){return surface==null?0:surface.GetPixel(x,y).A;}
         internal void SaveSnapshot(string path){if(surface==null)Render();using(Bitmap copy=surface.Clone(new Rectangle(0,0,currentWidth,barHeight),PixelFormat.Format32bppArgb))copy.Save(path,ImageFormat.Png);}
         protected override void Dispose(bool disposing) {
+            if(disposing&&orderGuard!=null){orderGuard.Dispose();orderGuard=null;}
             if(disposing){animation.Stop();idleTimer.Stop();contextMenu.Opening-=MenuOpening;contextMenu.Closed-=MenuClosed;tooltip.Dispose();animation.Dispose();idleTimer.Dispose();leftText.Dispose();centerText.Dispose();}
             ReleaseSurface(disposing); base.Dispose(disposing);
         }

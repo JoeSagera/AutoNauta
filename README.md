@@ -109,3 +109,7 @@ La ventana muestra caídas, recuperaciones, intentos AUTO y AUTO efectivos duran
 ## Barra fijada informativa (2.4.1)
 
 Al fijar la barra y retirar el mouse, se ocultan AUTO/MAN y la chincheta y el ancho se ajusta a LED, tiempo y velocidades. Los controles reaparecen al pasar el mouse por encima. Se reducen los espacios entre las cifras: 280 px sin controles y 356 px con controles a 100 %, manteniendo el tamaño del texto. Validación y detalles: `docs/BARRA-FIJADA-2.4.1.md`.
+
+## Prioridad del indicador (2.4.2)
+
+El LED recupera su posición superior cuando Windows avisa de un cambio de aplicación o de una ventana que lo tapa. Conserva el foco de la aplicación activa, la posición, la barra compacta y la muesca verde. Usa eventos y una comprobación diferida de una sola ejecución, sin sondeo permanente. El usuario confirmó que ahora se ve encima de BF6 en su configuración de pantalla completa. Esto no garantiza compatibilidad universal con todos los juegos o modos de presentación. Implementación, pruebas nativas y límites: `docs/SUPERPOSICION-2.4.2.md`.

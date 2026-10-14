@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.4.1.0**, con barra fijada informativa: al retirar el mouse oculta AUTO/MAN y la chincheta y conserva LED, horas y velocidades. Al pasar por encima reaparecen los botones. Conserva recuperación, estadísticas y actividad copiable de 2.4.0. Revisión: `../../docs/BARRA-FIJADA-2.4.1.md`.
+Entrega actual: **2.4.2.0**, con prioridad del indicador reforzada por avisos de Windows: recupera su lugar ante otras ventanas superiores sin cambiar el foco ni sondear continuamente. Conserva la barra compacta, las horas y la reconexión. Los juegos a pantalla completa pueden impedir ventanas de escritorio superpuestas; si sucede, usa ventana sin bordes. Revisión y límites: `../../docs/SUPERPOSICION-2.4.2.md`.
 
 ## Empezar
 
