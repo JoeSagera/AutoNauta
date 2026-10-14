@@ -192,8 +192,8 @@ namespace NautaReconnect
             if(secret.Length == 0 && !HasSavedAccount) { SetHint("Escribe la contraseña de esta cuenta antes de guardar.",true); password.Focus(); return; }
             if(secret.Length == 0 && !String.Equals(user,controller.Settings.Username,StringComparison.OrdinalIgnoreCase)) { SetHint("Para cambiar de cuenta, escribe su contraseña.",true); password.Focus(); return; }
             enteredSecret = secret;
-            RunCommand(delegate { controller.SaveAccount(user,secret); },delegate { password.Clear(); editingAccount = false; RefreshAccount(); },
-                delegate(Exception error) { SetHint(error is ArgumentException ? SafeText(error.Message) : "No se pudo guardar la cuenta. Inténtalo de nuevo.",true); });
+            RunCommand(delegate { controller.SaveAccount(user,secret); },delegate { password.Clear(); enteredSecret=""; editingAccount = false; RefreshAccount(); },
+                delegate(Exception error) { SetHint(error is ArgumentException ? SafeText(error.Message) : "No se pudo guardar la cuenta. Inténtalo de nuevo.",true); enteredSecret=""; });
         }
         void ClearAccount() {
             if(preview || exiting || pending != 0) return;

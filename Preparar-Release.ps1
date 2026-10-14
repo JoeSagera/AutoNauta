@@ -1,4 +1,4 @@
-param([string]$Version='2.4.2')
+param([string]$Version='2.4.3')
 $ErrorActionPreference='Stop'
 if($Version -notmatch '^\d+\.\d+\.\d+$'){throw 'La versión debe tener el formato mayor.menor.parche.'}
 $taskExe=Join-Path $PSScriptRoot 'outputs\AutoNauta\AutoNauta.exe'
@@ -13,7 +13,8 @@ $taskStage=Join-Path $env:TEMP ('AutoNautaRelease-'+[guid]::NewGuid().ToString('
 New-Item -ItemType Directory -Path $taskStage|Out-Null
 Copy-Item -LiteralPath $taskExe -Destination (Join-Path $taskStage 'AutoNauta.exe')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs\GUIA-AMIGOS.txt') -Destination (Join-Path $taskStage 'LEEME.txt')
-$taskInside=@('AutoNauta.exe','LEEME.txt')|ForEach-Object{(Get-FileHash -LiteralPath (Join-Path $taskStage $_) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$_}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination (Join-Path $taskStage 'LICENSE.txt')
+$taskInside=@('AutoNauta.exe','LEEME.txt','LICENSE.txt')|ForEach-Object{(Get-FileHash -LiteralPath (Join-Path $taskStage $_) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$_}
 $taskInside|Set-Content -LiteralPath (Join-Path $taskStage 'SHA256SUMS.txt') -Encoding utf8
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [IO.Compression.ZipFile]::CreateFromDirectory($taskStage,$taskZip,[IO.Compression.CompressionLevel]::Optimal,$false)

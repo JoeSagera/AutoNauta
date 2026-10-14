@@ -1,4 +1,4 @@
-AUTONAUTA 2.4.2 — BETA PARA WINDOWS X64
+AUTONAUTA 2.4.3 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -13,7 +13,7 @@ EMPEZAR
 
 COMPATIBILIDAD
 La versión actual se probó en Windows 11 x64, con Nauta Hogar.
-Usa .NET Framework; Windows 10/11 x64 son los sistemas previstos.
+Requiere .NET Framework 4.8. Windows 10 x64 no se validó con esta entrega.
 No requiere VPN. Verifica Internet por la salida que usa Windows y accede
 al portal Nauta por la interfaz del router. No cambia las rutas del sistema.
 
@@ -52,16 +52,20 @@ no son un test de velocidad ni incluyen los demás equipos del router.
 
 DATOS PERSONALES
 Este paquete no contiene ninguna cuenta, contraseña, sesión o configuración.
-Cada persona introduce sus propios datos, que se guardan cifrados para su
-usuario de Windows en %LOCALAPPDATA%\AutoNauta. No compartas esa carpeta.
+La contraseña y el contexto de sesión se cifran para tu usuario de Windows
+en %LOCALAPPDATA%\AutoNauta. Usuario y preferencias quedan en texto legible.
+No compartas esa carpeta ni los HTML guardados del portal.
 Puedes usar Eliminar cuenta en la aplicación para borrar los datos guardados.
 
 ALCANCE DE LA BETA
-Se comprobaron 92 pruebas locales, la interfaz y la consulta del contador
-en una sesión real de Nauta Hogar. La reconexión completa durante una nueva
-caída real de Nauta todavía requiere validación de campo.
+Se comprobó el núcleo con pruebas locales, la interfaz y el contador en una
+sesión real de Nauta Hogar. El usuario confirmó una reconexión automática
+real y que el LED se ve encima de BF6 en su configuración. Sigue siendo beta;
+no se garantiza la recuperación de cualquier caída o cambio del portal.
 No repara una línea ADSL sin señal. No arranca automáticamente con Windows.
-El programa no está afiliado a ETECSA ni a Proton.
+El programa no está afiliado a ETECSA ni a proveedores de VPN.
+El ejecutable no está firmado digitalmente; comprueba el SHA256 publicado.
+El ZIP incluye LICENSE.txt con la licencia MIT de AutoNauta.
 
 CONTADORES Y ACTIVIDAD
 Esta ejecución muestra caídas confirmadas, recuperaciones de Internet,

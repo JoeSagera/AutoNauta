@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.4.2.0**, con prioridad del indicador reforzada por avisos de Windows: recupera su lugar ante otras ventanas superiores sin cambiar el foco ni sondear continuamente. Conserva la barra compacta, las horas y la reconexión. Los juegos a pantalla completa pueden impedir ventanas de escritorio superpuestas; si sucede, usa ventana sin bordes. Revisión y límites: `../../docs/SUPERPOSICION-2.4.2.md`.
+Entrega actual: **2.4.3.0**, beta pública con licencia MIT y límites al interpretar HTML malformado. Conserva la prioridad del indicador, la barra compacta, las horas, estadísticas y reconexión. Guía pública actual: [GUIA-AMIGOS.txt](../../docs/GUIA-AMIGOS.txt). Seguridad y límites: [SECURITY.md](../../SECURITY.md).
 
 ## Empezar
 
@@ -55,17 +55,17 @@ El tooltip muestra la hora de la última consulta. Si la actualización falla, c
 
 ## Subida y bajada del sistema
 
-Se actualizan aproximadamente cada segundo y corresponden al tráfico agregado de las interfaces físicas activas del equipo. Excluye WireGuard y otras interfaces virtuales para evitar duplicar sus bytes. Incluye tráfico de otras aplicaciones, tráfico local y la sobrecarga de la VPN; no es un test de velocidad ni mide otros dispositivos conectados al router.
+Se actualizan aproximadamente cada segundo y corresponden al tráfico agregado de las interfaces físicas activas del equipo. Excluye interfaces virtuales para evitar duplicar sus bytes. Incluye tráfico de otras aplicaciones, tráfico local y la sobrecarga de la VPN; no es un test de velocidad ni mide otros dispositivos conectados al router.
 
 Las unidades son **Kb/s, Mb/s o Gb/s**: bits por segundo. La primera muestra aparece tras disponer de dos lecturas de los contadores.
 
 ## Datos y límites
 
-La configuración, contraseña cifrada, contador de sesión cifrado, posición y preferencias están en `%LOCALAPPDATA%\AutoNauta`. La configuración anterior se copia automáticamente desde la carpeta de ReconectorNauta sin borrar el original. No se registran contraseñas ni identificadores de sesión en los eventos.
+Los datos están en `%LOCALAPPDATA%\AutoNauta`. Contraseña y contexto de sesión están cifrados; usuario, IP recordada, posición y preferencias son legibles. La configuración anterior se copia automáticamente desde la carpeta de ReconectorNauta sin borrar el original. No se registran contraseñas ni identificadores de sesión en los eventos.
 
 HTTPS valida nombre, fechas y confianza del certificado; no exige una consulta de revocación en línea antes de tener Internet. Se mantienen los límites de reintentos y la espera ante respuestas ambiguas. No repara una línea ADSL caída ni se añadió inicio automático con Windows.
 
-El contador de una sesión real de Nauta Hogar ya devolvió una duración válida con la consulta corregida. La recuperación durante la siguiente caída real sigue pendiente de observar. Consulta `VALIDACION.md`. `barra-ejemplo.png` es una vista del diseño con cifras ficticias, no los datos de tu cuenta.
+El contador de una sesión real de Nauta Hogar devolvió una duración válida y el usuario confirmó una reconexión automática real. Sigue siendo beta: no se garantiza funcionamiento ante toda caída o cambio del portal. Las notas antiguas de `VALIDACION.md` corresponden a versiones anteriores. `barra-ejemplo.png` es una vista del diseño con cifras ficticias, no los datos de tu cuenta.
 
 ## Versión 2.1 y ejecución prolongada
 

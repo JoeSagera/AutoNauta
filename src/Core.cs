@@ -20,7 +20,7 @@ namespace NautaReconnect {
         }
         static Dictionary<string,string> Attributes(string tag) {
             var result=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-            foreach(Match m in Regex.Matches(tag,@"([\w:-]+)\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s>]+))",RegexOptions.Singleline)) {
+            foreach(Match m in HtmlRegex.Matches(tag,@"([\w:-]+)\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s>]+))",RegexOptions.Singleline)) {
                 result[m.Groups[1].Value]=WebUtility.HtmlDecode(m.Groups[2].Success?m.Groups[2].Value:m.Groups[3].Success?m.Groups[3].Value:m.Groups[4].Value);
             }
             return result;
@@ -43,30 +43,34 @@ namespace NautaReconnect {
             } else page.Error="El portal devolvió un aviso o error. Abre el portal para revisar el mensaje.";
         }
         public static PortalPage Parse(string html, Uri pageUri) {
+            try{return ParseBounded(html,pageUri);}
+            catch(RegexMatchTimeoutException){return new PortalPage{Fatal=true,Error="La página del portal no se pudo interpretar dentro del límite. No se enviaron credenciales."};}
+        }
+        static PortalPage ParseBounded(string html,Uri pageUri) {
             var page=new PortalPage();
             if(!Trusted(pageUri)) { page.Error="El portal redirigió a un destino no autorizado."; page.Fatal=true; return page; }
             if(html==null||html.Length>1024*1024) { page.Error="Respuesta del portal vacía o demasiado grande."; return page; }
-            string clean=Regex.Replace(html,@"<!--[\s\S]*?-->","");
-            foreach(Match s in Regex.Matches(clean,@"<script\b[^>]*>([\s\S]*?)</script\s*>",RegexOptions.IgnoreCase)) {
-                Match alert=Regex.Match(s.Groups[1].Value,@"^\s*alert\s*\(\s*(?:""([^""]+)""|'([^']+)')",RegexOptions.IgnoreCase);
+            string clean=HtmlRegex.Replace(html,@"<!--[\s\S]*?-->","");
+            foreach(Match s in HtmlRegex.Matches(clean,@"<script\b[^>]*>([\s\S]*?)</script\s*>",RegexOptions.IgnoreCase)) {
+                Match alert=HtmlRegex.Match(s.Groups[1].Value,@"^\s*alert\s*\(\s*(?:""([^""]+)""|'([^']+)')",RegexOptions.IgnoreCase);
                 if(alert.Success) { SetError(page,alert.Groups[1].Success?alert.Groups[1].Value:alert.Groups[2].Value); return page; }
             }
-            clean=Regex.Replace(clean,@"<(script|style)\b[^>]*>[\s\S]*?</\1\s*>","",RegexOptions.IgnoreCase);
-            if(Regex.IsMatch(clean,@"captcha|g-recaptcha|hcaptcha",RegexOptions.IgnoreCase)) { page.Fatal=true; page.Error="El portal requiere una comprobación manual (CAPTCHA)."; return page; }
-            string text=Normalize(WebUtility.HtmlDecode(Regex.Replace(clean,"<[^>]+>"," ")));
-            bool closeControl=Regex.IsMatch(Normalize(clean),@"<input\b[^>]*\bvalue\s*=\s*['""]cerrar sesion['""]",RegexOptions.IgnoreCase);
+            clean=HtmlRegex.Replace(clean,@"<(script|style)\b[^>]*>[\s\S]*?</\1\s*>","",RegexOptions.IgnoreCase);
+            if(HtmlRegex.IsMatch(clean,@"captcha|g-recaptcha|hcaptcha",RegexOptions.IgnoreCase)) { page.Fatal=true; page.Error="El portal requiere una comprobación manual (CAPTCHA)."; return page; }
+            string text=Normalize(WebUtility.HtmlDecode(HtmlRegex.Replace(clean,"<[^>]+>"," ")));
+            bool closeControl=HtmlRegex.IsMatch(Normalize(clean),@"<input\b[^>]*\bvalue\s*=\s*['""]cerrar sesion['""]",RegexOptions.IgnoreCase);
             if((text.Contains("usted esta conectado")&&(text.Contains("cerrar sesion")||closeControl)) ||
                (pageUri.AbsolutePath.EndsWith("online.do",StringComparison.OrdinalIgnoreCase)&&clean.Contains("ATTRIBUTE_UUID"))) {
                 page.Connected=true; return page;
             }
-            foreach(Match form in Regex.Matches(clean,@"<form\b([^>]*)>([\s\S]*?)</form\s*>",RegexOptions.IgnoreCase)) {
+            foreach(Match form in HtmlRegex.Matches(clean,@"<form\b([^>]*)>([\s\S]*?)</form\s*>",RegexOptions.IgnoreCase)) {
                 var attrs=Attributes(form.Groups[1].Value);
                 var fields=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
                 string user=null,pass=null;
                 bool duplicate=false;
-                foreach(Match input in Regex.Matches(form.Groups[2].Value,@"<input\b([^>]*)>",RegexOptions.IgnoreCase)) {
+                foreach(Match input in HtmlRegex.Matches(form.Groups[2].Value,@"<input\b([^>]*)>",RegexOptions.IgnoreCase)) {
                     var a=Attributes(input.Groups[1].Value); string name=Get(a,"name"),type=Get(a,"type").ToLowerInvariant();
-                    if(name.Length==0 || Regex.IsMatch(input.Value,@"\sdisabled(?:\s|=|/?>)",RegexOptions.IgnoreCase)) continue;
+                    if(name.Length==0 || HtmlRegex.IsMatch(input.Value,@"\sdisabled(?:\s|=|/?>)",RegexOptions.IgnoreCase)) continue;
                     if(type=="password") { if(pass!=null) duplicate=true; pass=name; }
                     if(name.Equals("username",StringComparison.OrdinalIgnoreCase)) user=name;
                     if(type=="hidden"||type=="text"||type=="password"||type=="submit"||type=="email"||type=="") {

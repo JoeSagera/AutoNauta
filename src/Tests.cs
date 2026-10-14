@@ -76,6 +76,30 @@ namespace NautaReconnect {
             public void Dispose(){Engine.Shutdown();foreach(string file in Directory.GetFiles(path))File.Delete(file);Directory.Delete(path);}
         }
         public static int Run() {
+            Check("HTML malformado se rechaza con límite de CPU sin enviar login",delegate{
+                foreach(string fragment in new[]{"<form>","<script>","<!--"}){
+                    var html=new StringBuilder();for(int i=0;i<10000;i++)html.Append(fragment);
+                    var clock=System.Diagnostics.Stopwatch.StartNew();var page=PortalParser.Parse(html.ToString(),Origin);
+                    Assert(!page.Login&&page.Fatal&&page.Error.Contains("límite"),"HTML hostil debe rechazarse de forma controlada");
+                    Assert(clock.ElapsedMilliseconds<2500,"Una página malformada no debe bloquear el analizador");
+                }
+            });
+            Check("Importación y respuesta de tiempo rechazan HTML costoso",delegate{
+                var html=new StringBuilder();for(int i=0;i<10000;i++)html.Append("<form>");
+                var clock=System.Diagnostics.Stopwatch.StartNew();
+                Assert(NautaSession.ReadSavedPage("<!-- saved from url=(0060)https://secure.etecsa.net:8443/web/online.do -->"+html,"test@nauta.com.cu")==null,"No guardar contexto de HTML hostil");
+                Assert(clock.ElapsedMilliseconds<2500,"Importación debe terminar en tiempo acotado");
+                html.Clear();for(int i=0;i<10000;i++)html.Append("<tr>");clock.Restart();var reading=AccountTime.Parse(html.ToString());
+                Assert(!reading.Remaining.HasValue&&reading.Note.Contains("límite")&&clock.ElapsedMilliseconds<2500,"Contador rechaza filas sin cierre de forma controlada");
+            });
+            Check("Lectura del HTML desde un único archivo limita bytes y respeta UTF8",delegate{
+                string path=Path.Combine(Path.GetTempPath(),"NautaPageTest-"+Guid.NewGuid().ToString("N")+".html");
+                try{
+                    File.WriteAllText(path,"Página sintética: ñ",Encoding.UTF8);Assert(BoundedInput.ReadPage(path)=="Página sintética: ñ","Conservar UTF8 y detectar BOM");
+                    File.WriteAllBytes(path,new byte[BoundedInput.MaximumBytes+1]);bool rejected=false;
+                    try{BoundedInput.ReadPage(path);}catch(ArgumentException){rejected=true;}Assert(rejected,"Rechazar tamaño mayor del límite antes de importar");
+                }finally{if(File.Exists(path))File.Delete(path);}
+            });
             Check("Estadísticas cuentan episodios y AUTO solo tras confirmar Internet",delegate{
                 using(var test=new Scenario()){
                     test.Internet=true;test.Cycle();test.Internet=false;test.Cycle();Assert(test.Engine.Metrics.ConnectionDrops==0,"Cuenta una sola sonda fallida como caída");test.Cycle();

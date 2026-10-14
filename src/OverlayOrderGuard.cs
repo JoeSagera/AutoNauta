@@ -38,9 +38,11 @@ namespace NautaReconnect {
         static bool TopLevelTopmost(IntPtr target){return GetAncestor(target,2)==target&&IsWindowVisible(target)&&(GetWindowLongPtr(target,-20).ToInt64()&8)!=0;}
         internal void Request(){
             if(disposed||queued||!window.IsHandleCreated||window.IsDisposed||window.Disposing)return;
+            if(!window.Visible||suspended()){settle.Stop();return;}
             queued=true;
             try{window.BeginInvoke((MethodInvoker)delegate{
                 queued=false;if(disposed)return;
+                if(!window.Visible||suspended()){settle.Stop();return;}
                 Raise();settle.Stop();settle.Start();
             });}catch(InvalidOperationException){queued=false;}
         }

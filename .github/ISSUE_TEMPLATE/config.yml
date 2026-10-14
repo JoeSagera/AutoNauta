@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Reportar vulnerabilidad en privado
+    url: https://github.com/JoeSagera/AutoNauta/security/advisories/new
+    about: Para riesgos de seguridad; no publiques credenciales ni sesiones en un Issue.

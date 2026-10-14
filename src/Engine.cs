@@ -105,8 +105,7 @@ namespace NautaReconnect {
         }
         public void ClearAccount(){Pause();lock(cycleGate){lock(settingsGate){Settings.Username="";Settings.ProtectedPassword="";Settings.ProtectedSession="";store.Save(Settings);retry.AuthBlocked=false;}ResetAccountReading();}Set(Light.Gray,"Pausado","La cuenta guardada se eliminó. No se cerró la sesión Nauta existente.");}
         public void ImportSessionFile(string path){
-            if(new FileInfo(path).Length>1024*1024)throw new ArgumentException("La página guardada es demasiado grande.");
-            ImportSessionHtml(File.ReadAllText(path));
+            ImportSessionHtml(BoundedInput.ReadPage(path));
         }
         internal void ImportSessionHtml(string html){
             lock(tokenGate){if(cycle!=null)cycle.Cancel();}

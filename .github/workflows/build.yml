@@ -1,0 +1,25 @@
+name: Compilar y validar
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Obtener fuentes
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Compilar y ejecutar pruebas del núcleo
+        shell: pwsh
+        run: ./Compilar.ps1
+      - name: Preparar y verificar paquete público
+        shell: pwsh
+        run: |
+          ./Preparar-Release.ps1
+          ./Validar-Paquete.ps1

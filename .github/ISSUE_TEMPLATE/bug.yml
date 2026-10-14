@@ -1,0 +1,25 @@
+name: Error de funcionamiento
+description: Describe un problema de AutoNauta sin compartir datos privados.
+body:
+  - type: markdown
+    attributes:
+      value: "No compartas contraseñas, config.json ni HTML real del portal. Para vulnerabilidades usa Report a vulnerability en Security."
+  - type: input
+    id: version
+    attributes:
+      label: Versión de AutoNauta y Windows
+      placeholder: AutoNauta 2.4.3, Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Cómo reproducirlo
+      description: Indica qué hiciste, qué esperabas y qué ocurrió. Describe si usas VPN sin adjuntar su configuración.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidencia sin datos personales
+      description: Capturas o actividad revisada. Oculta cuentas, IPs y datos de sesión.

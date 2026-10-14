@@ -12,6 +12,8 @@ secrets*.json
 *.pfx
 *.p12
 *.log
+*.html
+*.htm
 
 # Trabajo temporal y copias anteriores permanecen en el equipo.
 work/*
