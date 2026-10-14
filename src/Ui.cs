@@ -111,7 +111,7 @@ namespace NautaReconnect
         // Never derived from CUP credit: an unknown time is reported as unknown.
         static string TimeNote(Telemetry data) {
             if (data.Remaining.HasValue) return "Consultado a las " + data.AccountCheckedUtc.ToLocalTime().ToString("HH:mm") + ". " + (data.AccountNote ?? "");
-            if (data.Credit.HasValue) return "Contador disponible con una sesión de AutoNauta o vinculando la del navegador desde el menú del LED.";
+            if (data.Credit.HasValue) return String.IsNullOrEmpty(data.AccountNote)?"Contador disponible con una sesión de AutoNauta o vinculando la del navegador desde el menú del LED.":data.AccountNote;
             return String.IsNullOrEmpty(data.AccountNote) ? "Vincula la sesión del navegador desde el menú del LED o espera al próximo login automático." : data.AccountNote;
         }
         void Post(Action action) {

@@ -197,6 +197,9 @@ namespace NautaReconnect {
             if(page.Connected){Set(Light.Yellow,"Esperando conexión","Nauta informa que la sesión está abierta. Se espera a recuperar Internet sin volver a autenticar.");RefreshAccount(token);return;}
             if(page.SessionInUse){Set(Light.Yellow,"Sesión Nauta en uso","Se espera a que Nauta libere la sesión, sin bloquear permanentemente la cuenta.");return;}
             if(!page.Login){if(page.Fatal)retry.AuthBlocked=true;Set(Light.Red,"Error del portal",page.Error);return;}
+            // After the accepted-login grace period, a new login requirement must
+            // not credit a later independent recovery to the previous AUTO attempt.
+            loginAwaitingVerification=false;Count(s=>s.ForgetAuto());
             if(!String.IsNullOrEmpty(Settings.ProtectedSession)){lock(settingsGate){Settings.ProtectedSession="";store.Save(Settings);}lock(metricsGate){metrics.Remaining=null;metrics.AccountNote="La sesión anterior terminó; esperando un nuevo contador de Nauta.";}MetricsUpdated();}
             if(!Settings.AutoLoginEnabled){Set(Light.Yellow,"Login automático desactivado","Nauta solicita acceso. La vigilancia continúa sin iniciar sesión automáticamente.");return;}
             if(retry.AuthBlocked){Set(Light.Red,"Autenticación detenida","Revisa el portal y guarda nuevamente la cuenta para permitir otro intento.");return;}
@@ -246,6 +249,12 @@ namespace NautaReconnect {
                 }
                 var home=client.Get(token);var form=PortalParser.Parse(home.Body,home.Uri);if(!form.Login)throw new InvalidOperationException("Nauta no ofreció el formulario de información de cuenta.");
                 string password=SettingsStore.Unprotect(encrypted);PageResponse info;try{info=client.QueryAccount(form,user,password,token);}finally{password=null;}
+                token.ThrowIfCancellationRequested();
+                if(info.Code==401||info.Code==403){
+                    accountQueryBlocked=true;nextAccountCheck=DateTime.MaxValue;
+                    lock(metricsGate){metrics.AccountNote="Nauta rechazó la consulta de cuenta (HTTP "+info.Code+"). Las consultas con contraseña quedan detenidas; revisa y guarda la cuenta o vincula una sesión válida.";}
+                    MetricsUpdated();return;
+                }
                 if(info.Code!=200)throw new InvalidOperationException("La consulta de cuenta no respondió correctamente.");
                 var reading=AccountTime.Parse(info.Body);accountQueryBlocked=reading.CredentialsRejected;
                 if(!reading.Remaining.HasValue)nextAccountCheck=DateTime.MaxValue;

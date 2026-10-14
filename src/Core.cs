@@ -21,6 +21,7 @@ namespace NautaReconnect {
         static Dictionary<string,string> Attributes(string tag) {
             var result=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
             foreach(Match m in HtmlRegex.Matches(tag,@"([\w:-]+)\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s>]+))",RegexOptions.Singleline)) {
+                HtmlRegex.Checkpoint();
                 result[m.Groups[1].Value]=WebUtility.HtmlDecode(m.Groups[2].Success?m.Groups[2].Value:m.Groups[3].Success?m.Groups[3].Value:m.Groups[4].Value);
             }
             return result;
@@ -43,7 +44,7 @@ namespace NautaReconnect {
             } else page.Error="El portal devolvió un aviso o error. Abre el portal para revisar el mensaje.";
         }
         public static PortalPage Parse(string html, Uri pageUri) {
-            try{return ParseBounded(html,pageUri);}
+            try{using(HtmlRegex.Document())return ParseBounded(html,pageUri);}
             catch(RegexMatchTimeoutException){return new PortalPage{Fatal=true,Error="La página del portal no se pudo interpretar dentro del límite. No se enviaron credenciales."};}
         }
         static PortalPage ParseBounded(string html,Uri pageUri) {
@@ -64,11 +65,13 @@ namespace NautaReconnect {
                 page.Connected=true; return page;
             }
             foreach(Match form in HtmlRegex.Matches(clean,@"<form\b([^>]*)>([\s\S]*?)</form\s*>",RegexOptions.IgnoreCase)) {
+                HtmlRegex.Checkpoint();
                 var attrs=Attributes(form.Groups[1].Value);
                 var fields=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
                 string user=null,pass=null;
                 bool duplicate=false;
                 foreach(Match input in HtmlRegex.Matches(form.Groups[2].Value,@"<input\b([^>]*)>",RegexOptions.IgnoreCase)) {
+                    HtmlRegex.Checkpoint();
                     var a=Attributes(input.Groups[1].Value); string name=Get(a,"name"),type=Get(a,"type").ToLowerInvariant();
                     if(name.Length==0 || HtmlRegex.IsMatch(input.Value,@"\sdisabled(?:\s|=|/?>)",RegexOptions.IgnoreCase)) continue;
                     if(type=="password") { if(pass!=null) duplicate=true; pass=name; }

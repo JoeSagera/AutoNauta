@@ -1,5 +1,7 @@
 # Revisión de seguridad de AutoNauta 2.4.3
 
+Esta nota conserva la revisión inicial. Una revisión posterior confirmó casos adicionales corregidos en 2.4.4: [REVISION-SOL61-2.4.4.md](REVISION-SOL61-2.4.4.md). Se recomienda actualizar.
+
 13 de octubre de 2026. Revisión local del código, historial y distribución antes de publicar la beta. Codex revisó la publicación y los flujos de datos; un subagente **GPT-6 Luna, razonamiento Max**, solicitado por el usuario, realizó una revisión de seguridad y reproducciones sintéticas separadas. No es una auditoría certificada ni una prueba de ausencia de vulnerabilidades.
 
 ## Hallazgo confirmado y corregido

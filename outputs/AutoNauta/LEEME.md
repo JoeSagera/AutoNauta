@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.4.3.0**, beta pública con licencia MIT y límites al interpretar HTML malformado. Conserva la prioridad del indicador, la barra compacta, las horas, estadísticas y reconexión. Guía pública actual: [GUIA-AMIGOS.txt](../../docs/GUIA-AMIGOS.txt). Seguridad y límites: [SECURITY.md](../../SECURITY.md).
+Entrega actual: **2.4.4.0**, beta con presupuesto total para interpretar HTML, detención de consultas con contraseña ante HTTP401/403 y conteo AUTO corregido. Conserva la prioridad del indicador, la barra compacta y reconexión. Guía pública: [GUIA-AMIGOS.txt](../../docs/GUIA-AMIGOS.txt). Revisión de Sol: [REVISION-SOL61-2.4.4.md](../../docs/REVISION-SOL61-2.4.4.md).
 
 ## Empezar
 

@@ -2,7 +2,7 @@
 
 **Reconexión automática de Nauta Hogar para Windows**, con un indicador discreto, tiempo restante de la cuenta y velocidades de subida y bajada del equipo.
 
-[Descargar AutoNauta 2.4.3 beta](https://github.com/JoeSagera/AutoNauta/releases/tag/v2.4.3) · [Guía de uso](docs/GUIA-AMIGOS.txt) · [Seguridad](SECURITY.md) · [Licencia MIT](LICENSE)
+[Descargar AutoNauta 2.4.4 beta](https://github.com/JoeSagera/AutoNauta/releases/tag/v2.4.4) · [Guía de uso](docs/GUIA-AMIGOS.txt) · [Seguridad](SECURITY.md) · [Licencia MIT](LICENSE)
 
 ![Barra flotante con información y controles](outputs/AutoNauta/barra-fijada-2.4.1/ui-pinned-controls-izquierda.png)
 
@@ -15,7 +15,7 @@
 
 ## Empezar
 
-1. Descarga **AutoNauta-v2.4.3-windows-x64.zip** desde la Release. Los enlaces «Source code» son el código fuente, no el programa listo para abrir.
+1. Descarga **AutoNauta-v2.4.4-windows-x64.zip** desde la Release. Los enlaces «Source code» son el código fuente, no el programa listo para abrir.
 2. Extrae el ZIP completo y abre `AutoNauta.exe`. Es portátil y no necesita permisos de administrador.
 3. Introduce tu propia cuenta de navegación terminada en `@nauta.com.cu` y su contraseña; pulsa **Guardar cuenta** y después **Iniciar**.
 4. Minimiza o cierra la ventana con la X: el indicador y la vigilancia siguen funcionando. Para cerrar el programa, elige **Salir**.
@@ -52,6 +52,8 @@ No repara una línea ADSL sin señal, no añade saldo ni evita el consumo de tie
 El ejecutable **no está firmado digitalmente**. Comprueba que lo descargaste de este repositorio y verifica el SHA256 publicado; la suma comprueba integridad y no equivale a una firma. No publiques tu configuración, HTML del portal ni diagnósticos sin revisarlos.
 
 ## Privacidad y seguridad
+
+La beta 2.4.4 añade las correcciones de la [segunda revisión con GPT-6.1 Sol Max](docs/REVISION-SOL61-2.4.4.md): presupuesto total de análisis de HTML, consultas informativas con contraseña detenidas tras HTTP 401/403 y atribución de logins AUTO corregida. Se recomienda actualizar desde 2.4.3 y anteriores.
 
 La contraseña y el contexto de sesión se cifran con DPAPI para tu usuario de Windows en `%LOCALAPPDATA%\AutoNauta`. **El nombre de usuario y las preferencias se guardan en texto legible.** El paquete no incluye configuración ni datos personales. **Eliminar cuenta** quita los datos guardados por AutoNauta; no cierra la sesión del portal ni borra HTML que hayas guardado aparte.
 

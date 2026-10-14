@@ -6,14 +6,29 @@ namespace NautaReconnect {
     // Untrusted HTML must have both a size bound and a regex execution bound.
     internal static class HtmlRegex {
         static readonly TimeSpan Limit=TimeSpan.FromMilliseconds(250);
+        static readonly TimeSpan DocumentLimit=TimeSpan.FromSeconds(1);
+        [ThreadStatic] static long deadline;
+        internal static IDisposable Document(){return new DocumentScope();}
+        sealed class DocumentScope:IDisposable{
+            readonly long previous=deadline;
+            internal DocumentScope(){long next=System.Diagnostics.Stopwatch.GetTimestamp()+System.Diagnostics.Stopwatch.Frequency;deadline=previous==0?next:Math.Min(previous,next);}
+            public void Dispose(){deadline=previous;}
+        }
+        static TimeSpan Remaining(){
+            if(deadline==0)return Limit;
+            long ticks=deadline-System.Diagnostics.Stopwatch.GetTimestamp();
+            if(ticks<=0)throw new RegexMatchTimeoutException("","",DocumentLimit);
+            return TimeSpan.FromMilliseconds(Math.Max(1,Math.Min(Limit.TotalMilliseconds,1000D*ticks/System.Diagnostics.Stopwatch.Frequency)));
+        }
+        internal static void Checkpoint(){Remaining();}
         internal static Match Match(string input,string pattern){return Match(input,pattern,RegexOptions.None);}
-        internal static Match Match(string input,string pattern,RegexOptions options){return Regex.Match(input,pattern,options,Limit);}
+        internal static Match Match(string input,string pattern,RegexOptions options){return Regex.Match(input,pattern,options,Remaining());}
         internal static MatchCollection Matches(string input,string pattern){return Matches(input,pattern,RegexOptions.None);}
-        internal static MatchCollection Matches(string input,string pattern,RegexOptions options){return Regex.Matches(input,pattern,options,Limit);}
+        internal static MatchCollection Matches(string input,string pattern,RegexOptions options){return Regex.Matches(input,pattern,options,Remaining());}
         internal static bool IsMatch(string input,string pattern){return IsMatch(input,pattern,RegexOptions.None);}
-        internal static bool IsMatch(string input,string pattern,RegexOptions options){return Regex.IsMatch(input,pattern,options,Limit);}
+        internal static bool IsMatch(string input,string pattern,RegexOptions options){return Regex.IsMatch(input,pattern,options,Remaining());}
         internal static string Replace(string input,string pattern,string replacement){return Replace(input,pattern,replacement,RegexOptions.None);}
-        internal static string Replace(string input,string pattern,string replacement,RegexOptions options){return Regex.Replace(input,pattern,replacement,options,Limit);}
+        internal static string Replace(string input,string pattern,string replacement,RegexOptions options){return Regex.Replace(input,pattern,replacement,options,Remaining());}
     }
     internal static class BoundedInput {
         internal const int MaximumBytes=1024*1024;

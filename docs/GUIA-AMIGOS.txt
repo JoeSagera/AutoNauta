@@ -1,4 +1,4 @@
-AUTONAUTA 2.4.3 — BETA PARA WINDOWS X64
+AUTONAUTA 2.4.4 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -47,6 +47,9 @@ clic derecho del LED. Selecciona ese HTML para consultar el tiempo actual.
 La página contiene datos privados de tu sesión: no la compartas.
 También obtiene el contador después de un login automático. Se actualiza
 cada minuto. No cierra ni repite tu login para conseguirlo.
+Si Nauta rechaza una consulta de información con HTTP 401/403, se detienen
+esas consultas con contraseña. Revisa y guarda la cuenta o vincula un HTML
+de sesión válido para habilitarlas de nuevo. La vigilancia sigue funcionando.
 Las velocidades son el tráfico de tu computadora en bits por segundo;
 no son un test de velocidad ni incluyen los demás equipos del router.
 

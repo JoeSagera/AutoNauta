@@ -25,11 +25,12 @@ namespace NautaReconnect {
         sealed class FakePortal:IPortalClient{
             internal int Logins,Queries,TimeQueries;
             internal string LoginAnswer=OnlineHtml(),TimeAnswer="125:09:30";
+            internal int QueryCode=200;
             internal NautaSession LastSession;
             internal Func<PortalPage,string,string,CancellationToken,PageResponse> OnLogin;
             public PageResponse Get(CancellationToken token){return new PageResponse{Code=200,Uri=Origin,Body=LoginHtml("/LoginServlet")};}
             public PageResponse Login(PortalPage form,string user,string password,CancellationToken token){Logins++;if(OnLogin!=null)return OnLogin(form,user,password,token);return new PageResponse{Code=200,Uri=new Uri(Origin,"/web/online.do?CSRFHW=online-csrf"),Body=LoginAnswer};}
-            public PageResponse QueryAccount(PortalPage form,string user,string password,CancellationToken token){Queries++;return new PageResponse{Code=200,Uri=new Uri(Origin,"/EtecsaQueryServlet"),Body="<tr><td>Crédito</td><td>250.00 CUP</td></tr>"};}
+            public PageResponse QueryAccount(PortalPage form,string user,string password,CancellationToken token){Queries++;return new PageResponse{Code=QueryCode,Uri=new Uri(Origin,"/EtecsaQueryServlet"),Body="<tr><td>Crédito</td><td>250.00 CUP</td></tr>"};}
             public PageResponse GetLeftTime(NautaSession session,CancellationToken token){TimeQueries++;LastSession=session;return new PageResponse{Code=200,Body=TimeAnswer,Uri=new Uri(Origin,"/EtecsaQueryServlet")};}
         }
         sealed class Scenario:IDisposable{
@@ -76,6 +77,34 @@ namespace NautaReconnect {
             public void Dispose(){Engine.Shutdown();foreach(string file in Directory.GetFiles(path))File.Delete(file);Directory.Delete(path);}
         }
         public static int Run() {
+            Check("Rechazos 401 y 403 informativos no repiten credenciales ni bloquean login",delegate{
+                foreach(int code in new[]{401,403})using(var test=new Scenario()){
+                    test.Internet=true;test.Portal.QueryCode=code;
+                    for(int i=0;i<5;i++){test.Engine.CheckNow();test.Cycle();}
+                    var retry=(RetryPolicy)typeof(Engine).GetField("retry",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(test.Engine);
+                    Assert(test.Portal.Queries==1&&!retry.AuthBlocked&&test.Engine.Current.Light==Light.Green&&test.Engine.Metrics.AccountNote.Contains(code.ToString()),"Repite consulta rechazada o altera vigilancia/login");
+                    test.Engine.SaveAccount("test@nauta.com.cu","");test.Engine.CheckNow();test.Cycle();Assert(test.Portal.Queries==2,"Guardar cuenta no permite revisar la consulta de nuevo");
+                    test.Engine.ImportSessionHtml(SavedOnline());test.Engine.CheckNow();test.Cycle();
+                    Assert(test.Portal.Queries==2&&test.Portal.TimeQueries==2&&test.Engine.Metrics.Remaining.HasValue,"Una sesión válida vuelve a consultar contador sin contraseña");
+                }
+            });
+            Check("AUTO aceptado que pierde la sesión no cuenta como efectivo por recuperación independiente",delegate{
+                using(var test=new Scenario()){
+                    test.Cycle();test.Cycle();Assert(test.Portal.Logins==1&&test.Engine.Metrics.AutoLoginSuccesses==0,"Precondición de login aceptado aún sin Internet");
+                    typeof(Engine).GetField("loginSucceededUntil",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(test.Engine,DateTime.UtcNow.AddSeconds(-1));
+                    test.Engine.SetAutoLogin(false);test.Cycle();test.Cycle();
+                    Assert(String.IsNullOrEmpty(test.Engine.Settings.ProtectedSession)&&test.Engine.Current.Message=="Login automático desactivado","Precondición de sesión terminada y MAN");
+                    test.Internet=true;test.Cycle();Assert(test.Engine.Metrics.AutoLoginSuccesses==0&&test.Portal.Logins==1,"Atribuye a AUTO una recuperación independiente tras perder la sesión");
+                }
+            });
+            Check("Presupuesto de documento limita muchas operaciones HTML cortas y se reinicia",delegate{
+                var html=new StringBuilder("<form method=post action=/LoginServlet>");string tag="<input "+new string('a',1000)+">";
+                for(int i=0;i<900;i++)html.Append(tag);html.Append("</form>");string body=html.ToString();
+                var watch=System.Diagnostics.Stopwatch.StartNew();var parsed=PortalParser.Parse(body,Origin);
+                Assert(parsed.Fatal&&!parsed.Login&&parsed.Error.Contains("límite")&&watch.ElapsedMilliseconds<3500,"Muchas operaciones pequeñas superan el presupuesto total");
+                watch.Restart();Assert(NautaSession.ReadSavedPage("<!-- saved from url=(0060)https://secure.etecsa.net:8443/web/online.do -->"+body,"test@nauta.com.cu")==null&&watch.ElapsedMilliseconds<3500,"La importación no conserva el mismo presupuesto en llamadas anidadas");
+                Assert(PortalParser.Parse(LoginHtml("/LoginServlet"),Origin).Login&&NautaSession.ReadSavedPage(SavedOnline(),"test@nauta.com.cu")!=null,"Un timeout contamina el siguiente documento válido");
+            });
             Check("HTML malformado se rechaza con límite de CPU sin enviar login",delegate{
                 foreach(string fragment in new[]{"<form>","<script>","<!--"}){
                     var html=new StringBuilder();for(int i=0;i<10000;i++)html.Append(fragment);

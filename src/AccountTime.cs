@@ -9,13 +9,14 @@ namespace NautaReconnect {
         public Dictionary<string,string> Context=new Dictionary<string,string>();
         static readonly string[] ContextNames={"wlanuserip","ssid","loggerId","domain","wlanacname","wlanmac"};
         public static NautaSession Capture(PortalPage form,PageResponse response,string username){
-            try{return CaptureBounded(form,response,username);}catch(RegexMatchTimeoutException){return null;}
+            try{using(HtmlRegex.Document())return CaptureBounded(form,response,username);}catch(RegexMatchTimeoutException){return null;}
         }
         static NautaSession CaptureBounded(PortalPage form,PageResponse response,string username){
             if(!PortalParser.Trusted(response.Uri)||!PortalParser.Parse(response.Body,response.Uri).Connected)return null;
             // The online page supplies a new CSRF and the complete query context.
             // Read literal strings only; never execute portal JavaScript.
             foreach(Match statement in HtmlRegex.Matches(response.Body,@"var\s+urlParam\s*=\s*([^;]{1,8192});")){
+                HtmlRegex.Checkpoint();
                 string expression=statement.Groups[1].Value;if(!expression.Contains("op=getLeftTime"))continue;
                 var literals=HtmlRegex.Matches(expression,@"""([^""\\]*)""|'([^'\\]*)'");
                 string remainder=HtmlRegex.Replace(expression,@"""([^""\\]*)""|'([^'\\]*)'","");
@@ -47,7 +48,7 @@ namespace NautaReconnect {
             fields["username"]=Username;fields["CSRFHW"]=Csrf;fields["ATTRIBUTE_UUID"]=Uuid;fields["op"]="getLeftTime";return fields;
         }
         public static NautaSession ReadSavedPage(string html,string username){
-            try{return ReadSavedPageBounded(html,username);}catch(RegexMatchTimeoutException){return null;}
+            try{using(HtmlRegex.Document())return ReadSavedPageBounded(html,username);}catch(RegexMatchTimeoutException){return null;}
         }
         static NautaSession ReadSavedPageBounded(string html,string username){
             if(String.IsNullOrEmpty(html)||html.Length>1024*1024)return null;
@@ -78,11 +79,12 @@ namespace NautaReconnect {
             return TimeSpan.FromSeconds(hours*3600+minutes*60+seconds);
         }
         public static AccountReading Parse(string html){
-            try{return ParseBounded(html);}catch(RegexMatchTimeoutException){return new AccountReading{Note="La respuesta del contador no se pudo interpretar dentro del límite."};}
+            try{using(HtmlRegex.Document())return ParseBounded(html);}catch(RegexMatchTimeoutException){return new AccountReading{Note="La respuesta del contador no se pudo interpretar dentro del límite."};}
         }
         static AccountReading ParseBounded(string html){
             var result=new AccountReading();
             foreach(Match row in HtmlRegex.Matches(html??"",@"<tr\b[^>]*>([\s\S]*?)</tr>",RegexOptions.IgnoreCase)){
+                HtmlRegex.Checkpoint();
                 var cells=new List<string>();foreach(Match cell in HtmlRegex.Matches(row.Groups[1].Value,@"<t[dh]\b[^>]*>([\s\S]*?)</t[dh]>",RegexOptions.IgnoreCase))cells.Add(Text(cell.Groups[1].Value));
                 if(cells.Count<2)continue;string label=cells[0].ToLowerInvariant();string value=cells[cells.Count-1];
                 if(label.Contains("tiempo disponible")||label.Contains("tiempo restante")){
