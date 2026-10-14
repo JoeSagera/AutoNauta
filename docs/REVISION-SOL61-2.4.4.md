@@ -36,7 +36,7 @@ Verificación independiente: un POST de login, sesión descartada, MAN y recuper
 
 ## Validación de la entrega
 
-- Núcleo: 98 pruebas locales correctas; compilación separada mientras seguía abierta la versión anterior.
+- Núcleo: 98 pruebas locales correctas; compilación separada mientras seguía abierta la versión anterior. Sol recompiló y ejecutó también las 98 pruebas de las fuentes corregidas por separado: todas correctas.
 - Interfaz: `--ui-smoke` a 100 %, 150 % y 200 %, salida 0 y 34 capturas por escala. El aviso de consulta rechazada también se muestra si se conserva un crédito previo.
 - Instalación 2.4.4.0 con respaldo ignorado, igualdad SHA256 con candidato y conservación de cuenta, contraseña/contexto protegidos, modo, fijación y posición. Reiniciar para actualizar pone a cero los contadores de la ejecución.
 - Paquete con ejecutable, guía, MIT y sumas SHA256, comprobado con `Validar-Paquete.ps1`. Los assets 2.4.3 se conservan y se publica una versión nueva.
