@@ -11,13 +11,14 @@ namespace NautaReconnect
         internal readonly CanvasPanel Canvas;
         internal readonly Label PreviewBanner, StateLabel, StateTime, StateDetail, TimeValue, DownValue, UpValue, TimeNote;
         internal readonly Label WatchTitle, WatchDescription, AutoTitle, AutoDescription;
+        internal readonly Label StartupTitle,StartupDescription;
         internal readonly Label StatisticsTitle,StatisticsSince,DropsValue,RecoveriesValue,AttemptsValue,SuccessesValue;
         readonly Label dropsCaption,recoveriesCaption,attemptsCaption,successesCaption;
         internal readonly Label AccountTitle, AccountSummary, AccountHint, UserCaption, PasswordCaption, ActivityTitle, FooterNote;
         readonly Label timeCaption, downCaption, upCaption;
         internal readonly LedDot StateDot;
         internal readonly FlatButton Check, Toggle, EditAccount, CancelEdit, Save, Clear, Minimize, Exit,CopyActivity;
-        internal readonly ToggleSwitch Automatic;
+        internal readonly ToggleSwitch Automatic,Startup;
         internal readonly FieldBox UserField, PasswordField;
         internal readonly ActivityList Log;
         internal readonly ToolTip Tips;
@@ -28,7 +29,7 @@ namespace NautaReconnect
 
         internal MainWindow(bool preview) {
             this.preview = preview;
-            Text = "AutoNauta" + (preview ? " · Vista previa" : "");
+            Text = "AutoNauta " + AppVersion.Text + " beta" + (preview ? " · Vista previa" : "");
             AutoScaleMode = AutoScaleMode.None; Font = Theme.Body; BackColor = Palette.Background; ForeColor = Palette.Text;
             StartPosition = FormStartPosition.CenterScreen;
             Tips = new ToolTip { InitialDelay = 600, AutoPopDelay = 15000, ReshowDelay = 200 };
@@ -57,6 +58,9 @@ namespace NautaReconnect
             AutoTitle = Make("Login automático",Theme.Strong,Palette.Text,surface);
             AutoDescription = Make("",Theme.Small,Palette.Secondary,surface); AutoDescription.AutoEllipsis = true;
             Automatic = new ToggleSwitch { AccessibleName = "Login automático" };
+            StartupTitle=Make("Iniciar con Windows",Theme.Strong,Palette.Text,surface);
+            StartupDescription=Make("",Theme.Small,Palette.Secondary,surface);StartupDescription.AutoEllipsis=true;
+            Startup=new ToggleSwitch { AccessibleName="Iniciar con Windows" };
 
             AccountTitle = Make("Cuenta Nauta",Theme.Strong,Palette.Text,surface);
             AccountSummary = Make("",Theme.Small,Palette.Secondary,surface); AccountSummary.AutoEllipsis = true;
@@ -84,7 +88,7 @@ namespace NautaReconnect
 
             // Insertion order is the keyboard order: top to bottom, left to right.
             Control[] order = { PreviewBanner,StateDot,StateLabel,StateTime,StateDetail,timeCaption,TimeValue,downCaption,DownValue,upCaption,UpValue,TimeNote,Check,
-                WatchTitle,WatchDescription,Toggle,AutoTitle,AutoDescription,Automatic,AccountTitle,AccountSummary,EditAccount,CancelEdit,
+                WatchTitle,WatchDescription,Toggle,AutoTitle,AutoDescription,Automatic,StartupTitle,StartupDescription,Startup,AccountTitle,AccountSummary,EditAccount,CancelEdit,
                 UserCaption,UserField,PasswordCaption,PasswordField,AccountHint,Save,Clear,StatisticsTitle,StatisticsSince,dropsCaption,DropsValue,recoveriesCaption,RecoveriesValue,attemptsCaption,AttemptsValue,successesCaption,SuccessesValue,ActivityTitle,CopyActivity,Log,FooterNote,Minimize,Exit };
             for(int i = 0; i < order.Length; i++) { order[i].TabIndex = i; Canvas.Controls.Add(order[i]); }
 
@@ -93,6 +97,7 @@ namespace NautaReconnect
             Tips.SetToolTip(Check,"Comprueba ahora la conexión y el tiempo de la cuenta.");
             Tips.SetToolTip(Toggle,"Pausar detiene las comprobaciones.\nNo cierra la sesión Nauta ni desconecta la VPN.");
             Tips.SetToolTip(Automatic,"Desactivado, AutoNauta sigue vigilando pero no inicia sesión por ti.");
+            Tips.SetToolTip(Startup,"Abre solo el indicador y activa la vigilancia al iniciar sesión en Windows.\nConserva el modo AUTO o MAN elegido. Mantén el programa en su carpeta.");
             Tips.SetToolTip(Clear,"Borra la cuenta y la contraseña guardadas en esta computadora.");
             Tips.SetToolTip(Minimize,"Oculta la ventana. El LED y la vigilancia siguen activos.");
             Tips.SetToolTip(Exit,"Cierra AutoNauta por completo y detiene la vigilancia.");
@@ -175,6 +180,9 @@ namespace NautaReconnect
                 y += rowH; controlDivider = y; y += 1;
                 Place(AutoTitle,x,y + Theme.S(11) + oy,descW,Theme.S(20)); Place(AutoDescription,x,y + Theme.S(31) + oy,descW,Theme.S(18));
                 Place(Automatic,x + w - switchW,y + (rowH - button) / 2 + oy,switchW,button);
+                y += rowH;
+                Place(StartupTitle,x,y + Theme.S(11) + oy,descW,Theme.S(20));Place(StartupDescription,x,y + Theme.S(31) + oy,descW,Theme.S(18));
+                Place(Startup,x + w - switchW,y + (rowH - button) / 2 + oy,switchW,button);
                 y += rowH; controlCard = new Rectangle(m,top,cardW,y - top); y += gap;
 
                 top = y;

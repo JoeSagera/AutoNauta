@@ -19,7 +19,9 @@ namespace NautaReconnect
         readonly IndicatorForm indicator;
         readonly NotifyIcon tray;
         readonly ContextMenuStrip menu;
-        readonly ToolStripMenuItem toggleMenu, checkMenu,automaticMenu,pinnedMenu,restoreIndicatorMenu;
+        readonly ToolStripMenuItem toggleMenu, checkMenu,automaticMenu,pinnedMenu,restoreIndicatorMenu,startupMenu;
+        readonly WindowsStartup startup;
+        bool startupFailed;
         readonly System.Windows.Forms.Timer positionTimer;
         readonly object commandGate = new object();
         readonly TextBox username, password;
@@ -33,10 +35,16 @@ namespace NautaReconnect
         bool cleaned, shutdownCompleted, editingAccount, hintWarning, smokeInteractive;
         int pending;
 
-        public UiContext(IController controller, bool preview)
+        public UiContext(IController controller, bool preview,bool background=false)
         {
             if (controller == null) throw new ArgumentNullException("controller");
             this.controller = controller; this.preview = preview;
+            startup=new WindowsStartup(Application.ExecutablePath);
+            if(!preview)try { startup.Apply(controller.Settings.StartWithWindows); }
+            catch(Exception error) {
+                if(!(error is IOException||error is UnauthorizedAccessException||error is System.Security.SecurityException))throw;
+                startupFailed=true;
+            }
             if (preview) {
                 Theme.OverrideScale(Environment.GetEnvironmentVariable("AUTONAUTA_UI_SCALE"));
                 // The preview never reads the network: fixed example values show the layout.
@@ -57,6 +65,7 @@ namespace NautaReconnect
             toggleMenu = new ToolStripMenuItem("Iniciar vigilancia"); toggleMenu.Click += delegate { ToggleRunning(); }; menu.Items.Add(toggleMenu);
             checkMenu = new ToolStripMenuItem("Comprobar ahora"); checkMenu.Click += delegate { RunCommand(delegate { controller.CheckNow(); },null); }; menu.Items.Add(checkMenu);
             automaticMenu=new ToolStripMenuItem("Login automático");automaticMenu.Click+=delegate{ToggleAutomatic();};menu.Items.Add(automaticMenu);
+            startupMenu=new ToolStripMenuItem("Iniciar con Windows");startupMenu.Click+=delegate{ToggleStartup();};menu.Items.Add(startupMenu);
             pinnedMenu=new ToolStripMenuItem("Mantener barra expandida");pinnedMenu.Click+=delegate{TogglePinned();};menu.Items.Add(pinnedMenu);
             menu.Items.Add(new ToolStripSeparator()); var exitMenu = new ToolStripMenuItem("Salir"); exitMenu.Click += delegate { ExitRequested(); }; menu.Items.Add(exitMenu);
             foreach (ToolStripItem item in menu.Items) item.Padding = new Padding(0,Theme.S(2),0,Theme.S(2));
@@ -72,6 +81,7 @@ namespace NautaReconnect
             main.CopyActivity.Click+=delegate{main.Log.Copy(true);};
             main.Log.FullLogRequested+=delegate{try{string path=Path.Combine(Program.DataPath,"eventos.log");main.Log.ShowText("Registro completo",preview?"Vista previa: no se lee el registro personal.":File.Exists(path)?SafeText(File.ReadAllText(path)):"Todavía no hay un registro guardado.");}catch(IOException){MessageBox.Show(main,"No se pudo leer el registro. Inténtalo de nuevo.","Actividad",MessageBoxButtons.OK,MessageBoxIcon.Information);}};
             main.Automatic.Click+=delegate{ToggleAutomatic();};
+            main.Startup.Click+=delegate{ToggleStartup();};
             main.Clear.Click += delegate { ClearAccount(); };
             main.EditAccount.Click += delegate { BeginEditAccount(); }; main.CancelEdit.Click += delegate { CancelEditAccount(); };
             KeyEventHandler fieldKeys = delegate(object sender, KeyEventArgs e) {
@@ -83,7 +93,7 @@ namespace NautaReconnect
             username.TextChanged += edited; password.TextChanged += edited;
             // Create a dispatch handle before subscribing to worker status events.
             IntPtr handle = main.Handle; controller.StatusChanged += StatusChanged;controller.MetricsChanged+=MetricsChanged;
-            ApplyStatus(controller.Current);ApplyMetrics(CurrentMetrics()); RefreshAccount(); RefreshActions(); tray.Visible = true; indicator.Show(); main.FitToContent(); main.Show();ApplyMetrics(CurrentMetrics());
+            ApplyStatus(controller.Current);ApplyMetrics(CurrentMetrics()); RefreshAccount(); RefreshActions(); tray.Visible = true; indicator.Show(); main.FitToContent(); if(!background)main.Show();ApplyMetrics(CurrentMetrics());
             // Preview only: an example green state to try the lateral notch with the real mouse.
             if (preview && String.Equals(Environment.GetEnvironmentVariable("AUTONAUTA_PREVIEW_STATE"),"verde",StringComparison.OrdinalIgnoreCase)) ApplyStatus(new Status(Light.Green,"Internet conectado","Vista previa: estado de ejemplo, sin red."));
         }
@@ -174,15 +184,26 @@ namespace NautaReconnect
             toggleMenu.Text = running ? "Pausar vigilancia" : "Iniciar vigilancia";
             Theme.SetText(main.WatchDescription,running ? "Activa · revisa la conexión continuamente." : "En pausa · no comprueba ni reconecta.");
             main.Automatic.Checked = automatic;
+            main.Startup.Checked=startupMenu.Checked=controller.Settings.StartWithWindows&&!startupFailed;
+            Theme.SetText(main.StartupDescription,startupFailed?"No se pudo configurar. Pulsa para reintentar.":controller.Settings.StartWithWindows?"Abre el indicador y activa la vigilancia.":"Desactivado · se abre manualmente.");
+            main.Tips.SetToolTip(main.StartupDescription,main.StartupDescription.Text);
             Theme.SetText(main.AutoDescription,automatic ? "AUTO · inicia sesión si Nauta pide acceso." : "MAN · vigila, pero no inicia sesión.");
             automaticMenu.Checked=automatic;pinnedMenu.Checked=controller.Settings.IndicatorPinned;indicator.SetAutomatic(automatic);
             bool enabled = (!preview || smokeInteractive) && !exiting && pending == 0;
             main.Toggle.Enabled = toggleMenu.Enabled = checkMenu.Enabled = main.Check.Enabled = main.Save.Enabled = enabled;
             main.Clear.Enabled = enabled && (HasSavedAccount || !String.IsNullOrEmpty(controller.Settings.Username));
             main.Automatic.Enabled=automaticMenu.Enabled=pinnedMenu.Enabled=enabled;
+            main.Startup.Enabled=startupMenu.Enabled=enabled;
             main.EditAccount.Enabled = main.CancelEdit.Enabled = !exiting;
         }
         void ToggleAutomatic(){bool enabled=!controller.Settings.AutoLoginEnabled;RunCommand(delegate{controller.SetAutoLogin(enabled);},null);}
+        void ToggleStartup(){
+            bool enabled=startupFailed||!controller.Settings.StartWithWindows;
+            RunCommand(delegate{startup.ChangePreference(controller.Settings,enabled,controller.SaveSettings);},delegate{startupFailed=false;},delegate(Exception error){
+                startupFailed=true;
+                MessageBox.Show(main,"No se pudo cambiar el inicio con Windows. La configuración anterior se conserva; puedes volver a intentarlo.","Iniciar con Windows",MessageBoxButtons.OK,MessageBoxIcon.Information);
+            });
+        }
         void TogglePinned(){bool pinned=!controller.Settings.IndicatorPinned;RunCommand(delegate{controller.Settings.IndicatorPinned=pinned;controller.SaveSettings();},delegate{indicator.SetPinned(pinned);PersistPosition();});}
         void ToggleRunning() { if(preview) return; bool wasRunning = controller.Running; RunCommand(delegate { if(wasRunning) controller.Pause(); else controller.Start(); },null); }
         void SaveAccount() {
@@ -261,6 +282,7 @@ namespace NautaReconnect
             if(Thread.CurrentThread.GetApartmentState() != ApartmentState.STA) throw new InvalidOperationException("La prueba visual necesita STA.");
             if(!preview) throw new InvalidOperationException("La prueba visual debe ejecutarse en vista previa, sin red.");
             Directory.CreateDirectory(folder); Status original = controller.Current; Point location = indicator.AnchorLocation;
+            Assert(main.Text.Contains(AppVersion.Text)&&main.Startup.Checked&&startupMenu.Checked,"Versión visible e inicio Windows activado por defecto.");
             // The classic checks run with lateral docking off and a pointer far from the
             // LED, so the real mouse and docking delays cannot change their result.
             Point farPointer=new Point(-32000,-32000);indicator.CursorSource=delegate{return farPointer;};indicator.AutoHideEnabled=false;

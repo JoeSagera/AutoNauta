@@ -1,4 +1,4 @@
-param([string]$Version='2.4.4',[string]$PackagePath='')
+param([string]$Version='2.4.5',[string]$PackagePath='')
 $ErrorActionPreference='Stop'
 if($Version -notmatch '^\d+\.\d+\.\d+$'){throw 'Versión inválida'}
 if(!$PackagePath){$PackagePath=Join-Path $PSScriptRoot ('outputs\releases\v'+$Version+'\AutoNauta-v'+$Version+'-windows-x64.zip')}

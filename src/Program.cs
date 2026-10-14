@@ -15,17 +15,18 @@ namespace NautaReconnect {
                 if(args.Length>0&&args[0]=="--diagnostic")return Diagnostic(args.Length>1?args[1]:Path.Combine(DataPath,"diagnostico.json"));
                 if(args.Length>0&&args[0]=="--self-test")return CoreTests.Run();
                 bool preview=args.Length>0&&(args[0]=="--preview"||args[0]=="--ui-smoke");
+                bool startup=Array.IndexOf(args,"--startup")>=0;
+                bool background=startup||Array.IndexOf(args,"--background")>=0;
                 Native.SetProcessDPIAware();
                 string data=preview?Path.Combine(Path.GetTempPath(),"NautaUiPreview-"+Guid.NewGuid().ToString("N")):DataPath;
                 using(var mutex=new Mutex(false,"Local\\ReconectorNauta-"+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){
-                    bool acquired=preview;try{if(!preview)acquired=mutex.WaitOne(5000);}catch(AbandonedMutexException){acquired=true;}
-                    if(!acquired){MessageBox.Show("AutoNauta ya está abierto. Busca su indicador o el icono junto al reloj.","AutoNauta");return 0;}
+                    bool acquired=preview;try{if(!preview)acquired=mutex.WaitOne(background?0:5000);}catch(AbandonedMutexException){acquired=true;}
+                    if(!acquired){if(!background)MessageBox.Show("AutoNauta ya está abierto. Busca su indicador o el icono junto al reloj.","AutoNauta");return 0;}
                     Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
-                    var engine=new Engine(new SettingsStore(data),preview);var context=new UiContext(engine,preview);
+                    var engine=new Engine(new SettingsStore(data),preview);var context=new UiContext(engine,preview,background);
                     try{
                         if(args.Length>0&&args[0]=="--ui-smoke"){context.Smoke(args.Length>1?args[1]:Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"pruebas-visuales"));context.ExitThread();return 0;}
-                        if(args.Length>0&&args[0]=="--resume")engine.Start();
-                        if(Array.IndexOf(args,"--background")>=0)context.MinimizeMain();
+                        if(startup||(args.Length>0&&args[0]=="--resume"))engine.Start();
                         Application.Run(context);
                     }finally{engine.Shutdown();if(!preview)mutex.ReleaseMutex();}
                 }

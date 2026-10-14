@@ -22,6 +22,8 @@
 
 Para actualizar, sal de la versión anterior y sustituye el ejecutable. Tus datos y preferencias están fuera de la carpeta del programa. Los contadores de esta ejecución se reinician al volver a abrirlo.
 
+El código y ejecutable del repositorio ya incluyen **2.4.5 beta**; la última Release descargable sigue siendo 2.4.4. En 2.4.5, la versión aparece en el título y **Iniciar con Windows** está habilitado por defecto. Al iniciar sesión en Windows abre solo el indicador y activa la vigilancia conservando AUTO/MAN. Puedes desactivarlo en la ventana o en el menú del LED. Extrae el programa a una carpeta permanente; si lo mueves, vuelve a abrirlo para actualizar la ruta de inicio.
+
 ## Qué hace
 
 Mientras hay Internet, espera y comprueba la conexión. Si falla, distingue la falta de enlace físico de una sesión Nauta que necesita acceso. Solo intenta iniciar sesión cuando reconoce el portal HTTPS y el modo **AUTO** está activado; no depende de que el navegador abra un popup.
@@ -47,7 +49,7 @@ La actividad se puede copiar con **Copiar actividad** o Ctrl+C. Ctrl+A seleccion
 
 Probado con **Windows 11 x64 y Nauta Hogar**. Requiere .NET Framework 4.8; Windows 10 x64 no se ha validado con esta entrega. No requiere VPN y no modifica rutas ni conecta/desconecta tu VPN. Un cliente VPN o un cortafuegos que bloquee el portal puede impedir la reconexión.
 
-No repara una línea ADSL sin señal, no añade saldo ni evita el consumo de tiempo de Nauta. No se inicia automáticamente con Windows. Es una **beta**: hubo reconexión automática real y contador confirmado por el usuario, además de pruebas locales; no es una garantía de funcionamiento ante cualquier caída o cambio del portal.
+No repara una línea ADSL sin señal, no añade saldo ni evita el consumo de tiempo de Nauta. Es una **beta**: hubo reconexión automática real y contador confirmado por el usuario, además de pruebas locales; no es una garantía de funcionamiento ante cualquier caída o cambio del portal.
 
 El ejecutable **no está firmado digitalmente**. Comprueba que lo descargaste de este repositorio y verifica el SHA256 publicado; la suma comprueba integridad y no equivale a una firma. No publiques tu configuración, HTML del portal ni diagnósticos sin revisarlos.
 

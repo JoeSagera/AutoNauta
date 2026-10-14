@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.4.4.0**, beta con presupuesto total para interpretar HTML, detención de consultas con contraseña ante HTTP401/403 y conteo AUTO corregido. Conserva la prioridad del indicador, la barra compacta y reconexión. Guía pública: [GUIA-AMIGOS.txt](../../docs/GUIA-AMIGOS.txt). Revisión de Sol: [REVISION-SOL61-2.4.4.md](../../docs/REVISION-SOL61-2.4.4.md).
+Entrega actual: **2.4.5.0**, beta con versión visible e inicio con Windows activado por defecto. Conserva las correcciones de seguridad, la prioridad del indicador, la barra compacta y reconexión. Guía pública: [GUIA-AMIGOS.txt](../../docs/GUIA-AMIGOS.txt). Revisión de Sol: [REVISION-SOL61-2.4.4.md](../../docs/REVISION-SOL61-2.4.4.md).
 
 ## Empezar
 
@@ -75,7 +75,9 @@ Con solo el LED visible, el programa evita repintados y actualizaciones de contr
 
 Los registros conservan un archivo activo y cuatro archivos rotados, alrededor de 2,5 MiB en total. Una consulta de cuenta que no aporta el contador no se repite automáticamente; el siguiente login o **Comprobar ahora** permite consultar nuevamente.
 
-Para abrir directamente minimizado puede ejecutarse `AutoNauta.exe --resume --background`. El doble clic normal mantiene la ventana inicial. No se añadió arranque automático con Windows.
+La versión aparece en el título de la ventana. **Iniciar con Windows** está habilitado por defecto y puede cambiarse en la ventana o en el menú del LED. Al iniciar sesión abre el indicador y activa la vigilancia, conservando AUTO/MAN. Mantén el ejecutable en una carpeta permanente; si lo mueves, vuelve a abrirlo para actualizar la ruta. **Salir** termina la ejecución actual y conserva esta preferencia.
+
+El inicio usa una entrada de tu usuario, sin administrador, con `AutoNauta.exe --startup`. `--resume --background` también permite abrir directamente en segundo plano; el doble clic normal mantiene la ventana inicial. Si ya está abierto, el inicio en segundo plano termina sin ventanas ni otra instancia.
 
 Consulta `REVISION-RENDIMIENTO.md` para los cambios, medidas y límites de la prueba.
 

@@ -26,6 +26,7 @@ El compilador es el `csc.exe` de .NET Framework x64 instalado con Windows; el sc
 | `RateMonitor` / `ServiceStatistics` | Tráfico del equipo y episodios de caída/recuperación |
 | `Ui` / `UiMain` / `UiTheme` | Ventana, actividad copiable, cápsula y muesca lateral |
 | `OverlayOrderGuard` | Prioridad del indicador por eventos de ventanas sin cambiar el foco |
+| `WindowsStartup` | Entrada HKCU Run de AutoNauta, preferencia activada por defecto, ruta citada y reversión si falla el guardado |
 
 El nombre `PinnedHttp` es histórico: aplica validación TLS de Windows con nombre DNS, no pinning de una huella concreta. Las sondas públicas no reciben credenciales. Lee [SECURITY.md](../SECURITY.md) antes de cambiar endpoints, TLS, importación o registros.
 

@@ -1,4 +1,4 @@
-AUTONAUTA 2.4.4 — BETA PARA WINDOWS X64
+AUTONAUTA 2.4.5 — BETA PARA WINDOWS X64
 
 Programa portátil para vigilar Nauta Hogar y volver a iniciar sesión cuando
 el portal confirma que se necesita acceso. No requiere instalador.
@@ -10,6 +10,15 @@ EMPEZAR
 4. Pulsa Guardar cuenta y después Iniciar en la fila Vigilancia.
 5. Minimiza la ventana o ciérrala con la X: el LED y la vigilancia siguen activos.
    Para terminar el programa, elige Salir.
+
+VERSIÓN E INICIO CON WINDOWS
+La versión se muestra en el título de la ventana principal.
+Iniciar con Windows está activado por defecto: al iniciar sesión en Windows,
+abre solo el indicador y activa la vigilancia, conservando AUTO o MAN.
+Desactívalo en la ventana o en el menú del LED si prefieres abrirlo manualmente.
+Mantén AutoNauta.exe en una carpeta permanente. Si lo mueves, vuelve a abrirlo
+para actualizar su ruta de inicio. No requiere permisos de administrador.
+Salir lo cierra ahora; no desactiva su próximo inicio con Windows.
 
 COMPATIBILIDAD
 La versión actual se probó en Windows 11 x64, con Nauta Hogar.
@@ -65,7 +74,7 @@ Se comprobó el núcleo con pruebas locales, la interfaz y el contador en una
 sesión real de Nauta Hogar. El usuario confirmó una reconexión automática
 real y que el LED se ve encima de BF6 en su configuración. Sigue siendo beta;
 no se garantiza la recuperación de cualquier caída o cambio del portal.
-No repara una línea ADSL sin señal. No arranca automáticamente con Windows.
+No repara una línea ADSL sin señal.
 El programa no está afiliado a ETECSA ni a proveedores de VPN.
 El ejecutable no está firmado digitalmente; comprueba el SHA256 publicado.
 El ZIP incluye LICENSE.txt con la licencia MIT de AutoNauta.

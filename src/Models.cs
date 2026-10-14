@@ -16,6 +16,7 @@ namespace NautaReconnect {
         public int IntervalSeconds = 15;
         public string LastPortalIp = "10.180.0.30";
         public bool AutoLoginEnabled = true;
+        public bool StartWithWindows = true;
         public bool IndicatorPinned = false;
         public string ProtectedSession = "";
     }
