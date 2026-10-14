@@ -105,3 +105,7 @@ Los cambios de red interrumpen la petición anterior y despiertan la vigilancia.
 Un error auxiliar del contador tras un login no impide comprobar Internet. Los errores después del intento activan comprobaciones de recuperación sin exigir un clic manual. El registro identifica fase, tipo y código del error, omitiendo mensajes que podrían contener datos de sesión; la escritura de configuración reintenta bloqueos transitorios de Windows de forma acotada.
 
 La ventana muestra caídas, recuperaciones, intentos AUTO y AUTO efectivos durante esta ejecución. Ofrece copia de actividad, selección múltiple, detalle seleccionable y acceso al registro completo. La lista se redibuja correctamente al cambiar de tamaño. Pasaron 92 pruebas y la revisión visual a tres escalas. Definiciones, diagnóstico del incidente de las 17:19:39 y límites: `docs/ESTADOS-2.4.0.md`.
+
+## Barra fijada informativa (2.4.1)
+
+Al fijar la barra y retirar el mouse, se ocultan AUTO/MAN y la chincheta y el ancho se ajusta a LED, tiempo y velocidades. Los controles reaparecen al pasar el mouse por encima. Se reducen los espacios entre las cifras: 280 px sin controles y 356 px con controles a 100 %, manteniendo el tamaño del texto. Validación y detalles: `docs/BARRA-FIJADA-2.4.1.md`.

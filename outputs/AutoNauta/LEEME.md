@@ -1,6 +1,6 @@
 # AutoNauta
 
-Entrega actual: **2.4.0.0**, con recuperación tras errores posteriores al login, estadísticas de esta ejecución y actividad copiable. Conserva el LED lateral, la respuesta al cable y el contador de horas. La cuenta existente se conserva. Revisión y límites: `../../docs/ESTADOS-2.4.0.md`.
+Entrega actual: **2.4.1.0**, con barra fijada informativa: al retirar el mouse oculta AUTO/MAN y la chincheta y conserva LED, horas y velocidades. Al pasar por encima reaparecen los botones. Conserva recuperación, estadísticas y actividad copiable de 2.4.0. Revisión: `../../docs/BARRA-FIJADA-2.4.1.md`.
 
 ## Empezar
 

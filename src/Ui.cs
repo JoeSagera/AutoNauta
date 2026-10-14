@@ -280,7 +280,7 @@ namespace NautaReconnect
             indicator.Hide();indicator.TopMost=false;IntPtr beforeRecovery=GetForegroundWindow();restoreIndicatorMenu.PerformClick();Application.DoEvents();
             Assert(indicator.Visible&&indicator.TopMost&&!main.Visible&&GetForegroundWindow()==beforeRecovery,"Recuperar LED restaura el indicador sin abrir la ventana ni tomar el foco.");
             indicator.SetPinned(true);indicator.SetExpanded(true,true);indicator.WindowState=FormWindowState.Minimized;Application.DoEvents();
-            Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Pinned&&indicator.Expanded&&indicator.CurrentWidth==indicator.ExpandedWidth&&indicator.Bounds==indicator.LayeredBounds,"Recuperar conserva la barra fijada y su tamaño. Ventana="+indicator.Bounds+", superficie="+indicator.LayeredBounds+", ancho="+indicator.CurrentWidth);
+            Assert(indicator.WindowState==FormWindowState.Normal&&indicator.Pinned&&indicator.Expanded&&indicator.CurrentWidth==indicator.InformationWidth&&indicator.Bounds==indicator.LayeredBounds,"Recuperar conserva la barra fijada informativa y su tamaño. Ventana="+indicator.Bounds+", superficie="+indicator.LayeredBounds+", ancho="+indicator.CurrentWidth);
             indicator.SetPinned(false);indicator.SetExpanded(false,true);indicator.Hide();ShowMain(false);Application.DoEvents();
             Assert(main.Visible&&indicator.Visible&&indicator.WindowState==FormWindowState.Normal,"Mostrar AutoNauta también recupera un LED oculto.");
             HideMain();indicator.SetExpanded(false,true);Application.DoEvents();
@@ -327,7 +327,7 @@ namespace NautaReconnect
             indicator.SaveSnapshot(Path.Combine(folder,"ui-expanded.png"));
             int autoClicks=0,pinClicks=0;indicator.AutoLoginRequested+=delegate{autoClicks++;};indicator.PinRequested+=delegate{pinClicks++;};indicator.TestClick(1);indicator.TestClick(2);Assert(autoClicks==1&&pinClicks==1,"Los botones AUTO y fijar deben emitir acciones separadas.");
             indicator.SetHover(1);indicator.SaveSnapshot(Path.Combine(folder,"ui-expanded-hover-auto.png"));indicator.SetHover(0);
-            indicator.SetPinned(true);indicator.SetExpanded(false,true);Assert(indicator.Expanded&&indicator.CurrentWidth==indicator.ExpandedWidth,"La barra fijada no debe plegarse.");indicator.SaveSnapshot(Path.Combine(folder,"ui-pinned.png"));
+            indicator.SetPinned(true);indicator.SetExpanded(false,true);Assert(indicator.Expanded&&indicator.CurrentWidth==indicator.InformationWidth&&!indicator.ControlsVisible,"La barra fijada conserva información y oculta botones fuera del mouse.");indicator.SaveSnapshot(Path.Combine(folder,"ui-pinned.png"));
             indicator.SetAutomatic(false);indicator.SaveSnapshot(Path.Combine(folder,"ui-manual.png"));
             var unknown=new Telemetry{RatesReady=false,AccountNote="Tiempo disponible al iniciar sesión con AutoNauta."};indicator.ReadMetrics=delegate{return unknown;};indicator.SetMetrics(unknown);indicator.SaveSnapshot(Path.Combine(folder,"ui-expanded-sin-tiempo.png"));
             indicator.ReadMetrics=delegate{return example;};indicator.SetMetrics(example);
@@ -417,6 +417,16 @@ namespace NautaReconnect
                 Assert(ind.Expanded&&!ind.Hidden&&!ind.HidePending,"Volver con el mouse durante el ocultamiento lo invierte sin cerrar ("+side+").");
                 ind.TestFinishAnimation();Assert(ind.LayeredBounds==bar,"Tras invertir, la barra queda completa ("+side+").");
                 ind.TestHover(false);ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden&&ind.LayeredBounds==notch,"Vuelve a la muesca ("+side+").");
+                ind.SetPinned(true);ind.TestFinishAnimation();Point fixedLed=ind.LedScreenPoint;
+                Assert(ind.Pinned&&ind.Expanded&&!ind.Hidden&&!ind.ControlsVisible&&ind.CurrentWidth==ind.InformationWidth&&!ind.HidePending&&!ind.Animating,"Fijada sin mouse: solo información y sin temporizadores ("+side+").");
+                Assert(ind.TestHitControl(new Point(ind.AutomaticBounds.X+2,ind.AutomaticBounds.Y+2))==0,"AUTO oculto no responde al clic ("+side+").");
+                ind.SaveSnapshot(Path.Combine(folder,"ui-pinned-info-"+side+".png"));
+                int stableRenders=ind.RenderCount;ind.SetAutomatic(false);ind.SetAutomatic(true);Assert(ind.RenderCount==stableRenders,"AUTO invisible no provoca redibujados ("+side+").");
+                ind.TestHover(true);ind.TestFinishAnimation();Assert(ind.ControlsVisible&&ind.CurrentWidth==ind.ExpandedWidth&&ind.LedScreenPoint==fixedLed,"El mouse revela controles sin mover el LED ("+side+").");
+                Assert(ind.TestHitControl(new Point(ind.AutomaticBounds.X+2,ind.AutomaticBounds.Y+2))==1&&ind.TestHitControl(new Point(ind.PinBounds.X+2,ind.PinBounds.Y+2))==2,"AUTO y fijar vuelven a responder ("+side+").");
+                ind.SaveSnapshot(Path.Combine(folder,"ui-pinned-controls-"+side+".png"));
+                ind.TestHover(false);ind.TestFinishAnimation();Assert(ind.CurrentWidth==ind.InformationWidth&&!ind.ControlsVisible&&ind.LedScreenPoint==fixedLed,"Salir conserva cifras y LED y oculta los botones ("+side+").");
+                ind.SetPinned(false);ind.TestElapseDelay();ind.TestFinishAnimation();
             }
             // Yellow during the reveal animation: full capsule at the user's position at once.
             Point home=ind.AnchorLocation;
@@ -432,9 +442,9 @@ namespace NautaReconnect
             ind.SetStatus(Light.Green,"Internet conectado","");ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden,"Verde sin interacción vuelve a la muesca.");
             // Pin has priority in every state.
             ind.SetPinned(true);ind.TestFinishAnimation();Rectangle pinnedBar=ind.LayeredBounds;
-            Assert(ind.Expanded&&!ind.Hidden&&pinnedBar.Width==ind.ExpandedWidth&&!ind.HidePending,"Fijar revela y expande la barra en verde.");
+            Assert(ind.Expanded&&!ind.Hidden&&pinnedBar.Width==ind.InformationWidth&&!ind.HidePending,"Fijar fuera del mouse revela la barra informativa en verde.");
             ind.TestElapseDelay();ind.SaveSnapshot(Path.Combine(folder,"ui-lateral-fijada.png"));
-            ind.SetStatus(Light.Yellow,"Esperando recuperación","");Assert(ind.Expanded&&!ind.Docked&&ind.CurrentWidth==ind.ExpandedWidth,"Fijada en amarillo permanece expandida en su posición.");
+            ind.SetStatus(Light.Yellow,"Esperando recuperación","");Assert(ind.Expanded&&!ind.Docked&&ind.CurrentWidth==ind.InformationWidth,"Fijada en amarillo permanece informativa en su posición.");
             ind.SetStatus(Light.Green,"Internet conectado","");Assert(ind.Expanded&&!ind.HidePending,"Fijada en verde no se oculta.");
             ind.SetPinned(false);Assert(ind.HidePending,"Al quitar la fijación vuelve al comportamiento automático.");
             ind.TestElapseDelay();ind.TestFinishAnimation();Assert(ind.Hidden&&!ind.Expanded,"Sin fijación vuelve a la muesca.");
@@ -510,7 +520,7 @@ namespace NautaReconnect
     // a transition or a pending delay.
     internal sealed class IndicatorForm : Form {
         // 96-DPI units: capsule 32×26, bar 400×26, notch 7×22 visible.
-        readonly int compactWidth=Theme.S(32),expandedWidth=Theme.S(400),barHeight=Theme.S(26),notchDepth=Math.Max(5,Theme.S(7)),notchHeight=Theme.S(22);
+        readonly int compactWidth=Theme.S(32),expandedWidth=Theme.S(356),informationWidth=Theme.S(280),barHeight=Theme.S(26),notchDepth=Math.Max(5,Theme.S(7)),notchHeight=Theme.S(22);
         internal const int DockDelay=500,CollapseDelay=180,RevealDelay=2500;
         readonly ToolTip tooltip=new ToolTip();
         readonly System.Windows.Forms.Timer animation=new System.Windows.Forms.Timer{Interval=15};
@@ -546,6 +556,8 @@ namespace NautaReconnect
         internal Func<Point> CursorSource=delegate{return Cursor.Position;};
         internal Size CollapsedSize{get{return new Size(compactWidth,barHeight);}}
         internal int ExpandedWidth{get{return expandedWidth;}}
+        internal int InformationWidth{get{return informationWidth;}}
+        internal bool ControlsVisible{get{return expanded&&(!pinned||hovering||dragging||menuOpen);}}
         internal int NotchDepth{get{return notchDepth;}}
         internal int CurrentWidth{get{return currentWidth;}}
         internal Rectangle LayeredBounds{get{return new Rectangle(location,new Size(currentWidth,barHeight));}}
@@ -568,6 +580,7 @@ namespace NautaReconnect
         internal Point LedScreenPoint{get{int side=Math.Min(currentWidth,compactWidth)/2;return new Point(location.X+(expandLeft?currentWidth-side:side),location.Y+barHeight/2);}}
         internal void TestClick(int control){var rectangle=control==1?AutomaticBounds:PinBounds;var mouse=new MouseEventArgs(MouseButtons.Left,1,rectangle.X+rectangle.Width/2,rectangle.Y+rectangle.Height/2,0);OnMouseDown(mouse);OnMouseUp(mouse);}
         internal void TestHover(bool inside){if(inside)PointerEntered();else PointerLeft();}
+        internal int TestHitControl(Point point){return HitControl(point);}
         internal void TestElapseDelay(){if(idleTimer.Enabled)IdleTick();}
         internal void TestAdvance(double fraction){if(!tweening)return;tweenStart=System.Diagnostics.Stopwatch.GetTimestamp()-(long)(fraction*tweenMs*System.Diagnostics.Stopwatch.Frequency/1000);Step(fraction);}
         internal void TestFinishAnimation(){if(tweening)Step(1);}
@@ -617,9 +630,9 @@ namespace NautaReconnect
             UpdateTooltip();
         }
         void PointerEntered(){hovering=true;idleTimer.Stop();if(docked)hidden=false;SetExpandedFlag(true);Retarget(false);}
-        void PointerLeft(){hovering=false;SetHover(0);ScheduleIdle(IdleDelay);}
-        void MenuOpening(object sender,System.ComponentModel.CancelEventArgs e){menuOpen=true;idleTimer.Stop();}
-        void MenuClosed(object sender,ToolStripDropDownClosedEventArgs e){menuOpen=false;if(!MouseOverBar())ScheduleIdle(IdleDelay);}
+        void PointerLeft(){hovering=false;SetHover(0);if(pinned)Retarget(false);ScheduleIdle(IdleDelay);}
+        void MenuOpening(object sender,System.ComponentModel.CancelEventArgs e){menuOpen=true;idleTimer.Stop();if(pinned)Retarget(false);}
+        void MenuClosed(object sender,ToolStripDropDownClosedEventArgs e){menuOpen=false;if(pinned)Retarget(false);if(!MouseOverBar())ScheduleIdle(IdleDelay);}
         Point VisibleCapsuleLocation(){return new Point(expandLeft?location.X+currentWidth-compactWidth:location.X,location.Y);}
         // Show Desktop can minimize otherwise borderless forms. Restore on an
         // actual minimize event only; never poll or activate the foreground window.
@@ -679,7 +692,7 @@ namespace NautaReconnect
             else if(!MouseOverBar()){if(autoHide&&CurrentLight==Light.Green)ScheduleIdle(DockDelay);else{SetExpandedFlag(false);Retarget(false);}}
             if(changed){UpdateTooltip();if(expanded)Render();}
         }
-        internal void SetAutomatic(bool value){if(automatic==value)return;automatic=value;UpdateTooltip();if(expanded)Render();}
+        internal void SetAutomatic(bool value){if(automatic==value)return;automatic=value;UpdateTooltip();if(ControlsVisible)Render();}
         void UpdateTooltip(){string text=TooltipText();if(text!=cachedTooltip){cachedTooltip=text;tooltip.SetToolTip(this,text);}}
         internal void SetMetrics(Telemetry value){
             metrics=value??new Telemetry();if(!expanded)return;
@@ -720,7 +733,7 @@ namespace NautaReconnect
         internal static bool NearestRight(Rectangle area,int anchorX,int compact){int c=anchorX+compact/2;return area.Right-c<c-area.Left;}
         internal static int DockedX(Rectangle area,bool right,int width){return right?area.Right-width:area.Left;}
         Geometry Target(out bool ledRight){
-            Rectangle area=Area();int full=Math.Min(expandedWidth,area.Width);
+            Rectangle area=Area();int full=Math.Min(pinned&&!ControlsVisible?informationWidth:expandedWidth,area.Width);
             if(docked){
                 ledRight=NearestRight(area,anchor.X,compactWidth);
                 if(hidden&&!expanded)return new Geometry{X=DockedX(area,ledRight,notchDepth),W=notchDepth,N=1F};
@@ -753,10 +766,10 @@ namespace NautaReconnect
             Render();
         }
         // Content stays fixed relative to the LED while the capsule opens.
-        int ContentX{get{return expandLeft?currentWidth-expandedWidth+Theme.S(10):compactWidth-Theme.S(2);}}
-        internal Rectangle AutomaticBounds{get{return new Rectangle(ContentX+Theme.S(286),(barHeight-Theme.S(18))/2,Theme.S(46),Theme.S(18));}}
-        internal Rectangle PinBounds{get{return new Rectangle(ContentX+Theme.S(338),(barHeight-Theme.S(22))/2,Theme.S(22),Theme.S(22));}}
-        int HitControl(Point p){if(currentWidth<expandedWidth-Theme.S(5))return 0;Rectangle a=AutomaticBounds;a.Inflate(Theme.S(3),Theme.S(4));if(a.Contains(p))return 1;if(PinBounds.Contains(p))return 2;return 0;}
+        int ContentX{get{return expandLeft?currentWidth-(pinned?Math.Max(informationWidth,currentWidth):expandedWidth)+Theme.S(10):compactWidth-Theme.S(2);}}
+        internal Rectangle AutomaticBounds{get{return new Rectangle(ContentX+Theme.S(242),(barHeight-Theme.S(18))/2,Theme.S(46),Theme.S(18));}}
+        internal Rectangle PinBounds{get{return new Rectangle(ContentX+Theme.S(294),(barHeight-Theme.S(22))/2,Theme.S(22),Theme.S(22));}}
+        int HitControl(Point p){if(!ControlsVisible||currentWidth<expandedWidth-Theme.S(5))return 0;Rectangle a=AutomaticBounds;a.Inflate(Theme.S(3),Theme.S(4));if(a.Contains(p))return 1;if(PinBounds.Contains(p))return 2;return 0;}
         string TooltipText(){
             if(hoverControl==1)return automatic?"Login automático activado (AUTO).\nClic para pasar a manual: AutoNauta vigila, pero no inicia sesión.":"Login manual (MAN): AutoNauta vigila, pero no inicia sesión.\nClic para activar el login automático.";
             if(hoverControl==2)return pinned?"Barra fijada.\nClic para que se repliegue al retirar el mouse.":"Fijar la barra expandida.";
@@ -818,18 +831,19 @@ namespace NautaReconnect
                 if(w<compactWidth+Theme.S(24)||n>.3F)return;
                 g.SetClip(capsule);g.SetClip(expandLeft?new Rectangle(0,0,w-compactWidth+Theme.S(6),h):new Rectangle(compactWidth-Theme.S(6),0,w-compactWidth+Theme.S(6),h),CombineMode.Intersect);
             }
-            // Fixed columns: time 108, download 88, upload 88, AUTO/MAN 46 and pin 22.
+            // Fixed columns: time 90, download 76, upload 74, AUTO/MAN 46 and pin 22.
             int x=ContentX;float cyf=h/2F;
             using(Pen icon=Glyphs.Stroke(Palette.Secondary)){
                 Glyphs.Clock(g,icon,x+Theme.F(7F),cyf,Theme.F(12F));
-                Glyphs.Arrow(g,icon,x+Theme.S(108)+Theme.F(5F),cyf,Theme.F(11F),true);
-                Glyphs.Arrow(g,icon,x+Theme.S(196)+Theme.F(5F),cyf,Theme.F(11F),false);
+                Glyphs.Arrow(g,icon,x+Theme.S(90)+Theme.F(5F),cyf,Theme.F(11F),true);
+                Glyphs.Arrow(g,icon,x+Theme.S(166)+Theme.F(5F),cyf,Theme.F(11F),false);
             }
             using(Brush primary=new SolidBrush(Palette.Text))using(Brush secondary=new SolidBrush(Palette.Secondary)){
-                g.DrawString(cachedTime,timeKnown?Theme.IndicatorStrong:Theme.IndicatorText,timeKnown?primary:secondary,new RectangleF(x+Theme.S(18),0,Theme.S(86),h),leftText);
-                g.DrawString(cachedDownload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(122),0,Theme.S(70),h),leftText);
-                g.DrawString(cachedUpload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(210),0,Theme.S(70),h),leftText);
+                g.DrawString(cachedTime,timeKnown?Theme.IndicatorStrong:Theme.IndicatorText,timeKnown?primary:secondary,new RectangleF(x+Theme.S(18),0,Theme.S(68),h),leftText);
+                g.DrawString(cachedDownload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(104),0,Theme.S(62),h),leftText);
+                g.DrawString(cachedUpload,Theme.IndicatorText,primary,new RectangleF(x+Theme.S(180),0,Theme.S(60),h),leftText);
             }
+            if(!ControlsVisible||w<expandedWidth-Theme.S(5))return;
             Rectangle auto=AutomaticBounds;bool hoverAuto=hoverControl==1;
             using(GraphicsPath pill=Theme.Rounded(new RectangleF(auto.X+.5F,auto.Y+.5F,auto.Width-1F,auto.Height-1F),(auto.Height-1F)/2F)){
                 if(automatic){using(Brush b=new SolidBrush(Color.FromArgb(hoverAuto?78:46,Palette.Accent)))g.FillPath(b,pill);}
